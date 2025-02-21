@@ -42,6 +42,8 @@ function App() {
   const [creditDate, setCreditDate] = useState("");
   const [filteredCredits, setFilteredCredits] = useState([]); // Store filtered credits
   const [creditCategory, setCreditCategory] = useState("");
+  const [sortColumn, setSortColumn] = useState(null);
+  const [sortOrder, setSortOrder] = useState("asc");
 
   const categories = [
     "Groceries",
@@ -238,15 +240,61 @@ function App() {
       console.error("Error adding credit:", err);
     }
   };
-
- /*  const deleteCredit = async (id) => {
-    try {
-      await axios.delete(`http://localhost:5000/api/credits/${id}`);
-      fetchCredits(); // Refresh after deletion
-    } catch (err) {
-      console.error("Error deleting credit:", err);
-    }
-  }; */
+    
+  const handleSortExpenses = (column, dataType) => {
+    setSortColumn(column);
+    // Flip sorting order each time user clicks
+    const newOrder = sortOrder === "asc" ? "desc" : "asc";
+    setSortOrder(newOrder);
+  
+    // Make a copy of your filteredExpenses
+    const sorted = [...filteredExpenses];
+  
+    sorted.sort((a, b) => {
+      if (dataType === "number") {
+        return newOrder === "asc"
+          ? parseFloat(a[column]) - parseFloat(b[column])
+          : parseFloat(b[column]) - parseFloat(a[column]);
+      } else if (dataType === "date") {
+        return newOrder === "asc"
+          ? new Date(a[column]) - new Date(b[column])
+          : new Date(b[column]) - new Date(a[column]);
+      } else {
+        // string sort
+        return newOrder === "asc"
+          ? a[column].localeCompare(b[column])
+          : b[column].localeCompare(a[column]);
+      }
+    });
+  
+    setFilteredExpenses(sorted);
+  };
+  
+  const handleSortCredits = (column, dataType) => {
+    setSortColumn(column);
+    const newOrder = sortOrder === "asc" ? "desc" : "asc";
+    setSortOrder(newOrder);
+  
+    const sorted = [...filteredCredits];
+  
+    sorted.sort((a, b) => {
+      if (dataType === "number") {
+        return newOrder === "asc"
+          ? parseFloat(a[column]) - parseFloat(b[column])
+          : parseFloat(b[column]) - parseFloat(a[column]);
+      } else if (dataType === "date") {
+        return newOrder === "asc"
+          ? new Date(a[column]) - new Date(b[column])
+          : new Date(b[column]) - new Date(a[column]);
+      } else {
+        return newOrder === "asc"
+          ? a[column].localeCompare(b[column])
+          : b[column].localeCompare(a[column]);
+      }
+    });
+  
+    setFilteredCredits(sorted);
+  };
 
   // Upload CSV file
   const handleFileChange = (e) => {
@@ -504,54 +552,54 @@ function App() {
         </div>
       )}
 
-      {/* List of expenses */}
-      {showExpenses && (
+        {showExpenses && (
         <div>
-          <h2>💸Expenses</h2>
-
-          {/* Header Row */}
-          <div className="expenses-header">
-            <span>Name</span>
-            <span>Amount</span>
-            <span>Date</span>
-          </div>
-
-          {/* Expenses List */}
-          <ul className="expenses-list">
-            {filteredExpenses.map((exp) => (
-              <li key={exp.id}>
-                <span>{exp.name}</span>
-                <span>€{exp.amount}</span>
-                <span>{new Date(exp.date).toISOString().split("T")[0]}</span>
-              </li>
-            ))}
-          </ul>
+            <h2>💸 Expenses</h2>
+            <table className="styled-table">
+            <thead>
+                <tr>
+                <th onClick={() => handleSortExpenses("name", "string")}>Name</th>
+                <th onClick={() => handleSortExpenses("amount", "number")}>Amount</th>
+                <th onClick={() => handleSortExpenses("date", "date")}>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {filteredExpenses.map((exp) => (
+                <tr key={exp.id}>
+                    <td>{exp.name}</td>
+                    <td>€{exp.amount}</td>
+                    <td>{new Date(exp.date).toISOString().split("T")[0]}</td>
+                </tr>
+                ))}
+            </tbody>
+            </table>
         </div>
-      )}
+        )}
 
-      {showExpenses && (
+        {showExpenses && (
         <div>
-          <h2>💰Credits</h2>
-
-          {/* Header Row */}
-          <div className="expenses-header">
-            <span>Name</span>
-            <span>Amount</span>
-            <span>Date</span>
-          </div>
-
-          {/* Credits List */}
-          <ul className="expenses-list">
-            {filteredCredits.map((cred) => (
-              <li key={cred.id}>
-                <span>{cred.name}</span>
-                <span>€{cred.amount}</span>
-                <span>{new Date(cred.date).toISOString().split("T")[0]}</span>
-              </li>
-            ))}
-          </ul>
+            <h2>💰 Credits</h2>
+            <table className="styled-table">
+            <thead>
+                <tr>
+                <th onClick={() => handleSortCredits("name", "string")}>Name</th>
+                <th onClick={() => handleSortCredits("amount", "number")}>Amount</th>
+                <th onClick={() => handleSortCredits("date", "date")}>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {filteredCredits.map((cred) => (
+                <tr key={cred.id}>
+                    <td>{cred.name}</td>
+                    <td>€{cred.amount}</td>
+                    <td>{new Date(cred.date).toISOString().split("T")[0]}</td>
+                </tr>
+                ))}
+            </tbody>
+            </table>
         </div>
-      )}
+        )}
+
 
       {/* Balance Modal */}
       {isModalOpen && (

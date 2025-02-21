@@ -95,48 +95,45 @@ h2 {
   font-weight: bold;
   font-size: 18px;
   border-bottom: 2px solid #007bff;
-  /* padding: 5px 0; */
   margin-bottom: 10px;
 }
 
-/* Expenses list styling */
-.expenses-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+/* Table layout */
+.styled-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
 }
 
-.expenses-list li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px;
-  border: 1px solid #e0e0e0;
-  border-radius: 5px;
-  margin-bottom: 5px;
-  background-color: #f8f9fa;
+/* Header row background */
+.styled-table thead {
+  background-color: #aab168;
 }
 
-.expenses-list li:nth-child(odd) {
-  background-color: #e9ecef;
+/* Table cells */
+.styled-table th,
+.styled-table td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  text-align: left;
 }
 
-/* Flexbox alignment for columns */
-.expenses-header span,
-.expenses-list li span {
-    flex: 1;
-    text-align: left;
+/* Hover effect */
+.styled-table tbody tr:hover {
+  background-color: #84bd76;
+  transition: background 0.3s;
 }
 
-.expenses-header span:nth-child(2),
-.expenses-list li span:nth-child(2) {
-    text-align: center;
+/* Alternating row colors */
+.styled-table tbody tr:nth-child(even) {
+  background-color: #818bc0;
 }
 
-.expenses-header span:nth-child(3),
-.expenses-list li span:nth-child(3) {
-    text-align: right;
+/* Sortable column styling (optional) */
+.styled-table th {
+  cursor: pointer;
 }
+
 
 .modal-overlay {
   position: fixed;
