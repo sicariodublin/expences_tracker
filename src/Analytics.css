@@ -1,0 +1,20 @@
+/* App.css or Analytics.css */
+.analytics-container {
+    width: 700px;      /* Set desired width */
+    height: 400px;     /* Set desired height */
+    margin: 0 auto;    /* Center the container */
+    position: relative;
+    background-color: #fefeff;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    padding: 15px;
+  }
+  
+  .analytics-container canvas {
+    /* Make sure the canvas fills the container */
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+    box-sizing: border-box;
+  }
+  

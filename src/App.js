@@ -1,6 +1,7 @@
 import axios from "axios";
 import Chart from "chart.js/auto";
 import React, { useEffect, useState } from "react";
+import Analytics from "./Analytics";
 import "./App.css";
 
 function App() {
@@ -507,6 +508,16 @@ function App() {
           style={{ marginRight: "10px" }}
         />
         <button onClick={uploadCSV}>Upload CSV</button>
+      </div>
+
+      <div>
+        {/* Show analytics when desired, for example: */}
+        {showExpenses && (
+          <Analytics
+            filteredExpenses={filteredExpenses}
+            filteredCredits={filteredCredits}
+          />
+        )}
       </div>
 
       {/* Filters */}
