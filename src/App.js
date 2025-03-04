@@ -146,12 +146,15 @@ function App() {
                 legend: { position: "bottom" },
                 tooltip: {
                   callbacks: {
-                    label: function (tooltipItem) {
-                      return `€${tooltipItem.raw.toFixed(2)}`;
+                    label: function (context) {
+                      return `€${context.parsed.toFixed(2)}`;
                     },
                   },
                 },
-              },
+                datalabels: {
+                  formatter: (value) => `€${value.toFixed(2)}`, // Rounds slice labels
+                },
+              }              
             },
           });
         }
