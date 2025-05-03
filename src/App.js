@@ -36,14 +36,14 @@ function App() {
   const [total, setTotal] = useState(0);
   const [balance, setBalance] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isBreakdownModalOpen, setIsBreakdownModalOpen] = useState(false);
+  const [isBreakdownModalOpen] = useState(false);
   const [credits, setCredits] = useState([]); // Store multiple credit entries
   const [creditName, setCreditName] = useState("");
   const [creditAmount, setCreditAmount] = useState("");
   const [creditDate, setCreditDate] = useState("");
   const [filteredCredits, setFilteredCredits] = useState([]); // Store filtered credits
   const [creditCategory, setCreditCategory] = useState("");
-  const [sortColumn, setSortColumn] = useState(null);
+  const [, setSortColumn] = useState(null);
   const [sortOrder, setSortOrder] = useState("asc");
 
   const categories = [
@@ -51,7 +51,7 @@ function App() {
     "Credit",
     "Gym",
     "Holidays",
-    "Car",
+    "Carro",
     "Entertainment",
     "Eating Out",
     "Fee",
