@@ -1,6 +1,5 @@
-# Getting Started with Create React App
-
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# Expense Tracker
+A full-stack application to track your personal finances, visualize spending and income trends, and manage budgets. Built with a React front-end and an Express/MySQL back-end.
 
 ## Available Scripts
 
