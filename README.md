@@ -61,10 +61,10 @@ SQL
 * cd backend
 
 2 - Install dependencies:
-npm install express mysql2 cors multer csv-parser dotenv
+* npm install express mysql2 cors multer csv-parser dotenv
 
 3 - Start the server:
-node server.js
+* node server.js
 The API will be available at http://localhost:5000/api/...
 
 
