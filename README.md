@@ -54,9 +54,9 @@ SQL
 ![Screenshot 2025-06-07 190949](https://github.com/user-attachments/assets/1f548d76-396d-4e83-a2f4-d9a47d01835b) <br/> <br/>
 
 
-## Getting Started <br/> <br/>
+# Getting Started <br/> <br/>
 
-# Back-End
+## Back-End
 1 - Navigate into the backend folder:
 * cd backend
 
@@ -68,7 +68,7 @@ node server.js
 The API will be available at http://localhost:5000/api/...
 
 
-# Front-End
+## Front-End
 1 - Navigate into the frontend folder:
 * cd frontend 
 
@@ -105,11 +105,11 @@ From within the backend directory:
 
 
 ## Folder Breakdown
-backend/
+### backend/
 * server.js — defines routes for /api/expenses and /api/credits, handles CSV upload
 * .env — database credentials
 
-frontend/src/
+### frontend/src/
 * App.js — main component managing state, fetch/post API calls, UI layout
 * Analytics.js — reusable chart component for monthly trends (uses react-chartjs-2)
 * App.css — styling for forms, tables, modals, and dark mode
