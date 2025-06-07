@@ -14,11 +14,11 @@ A full-stack application to track your personal finances, visualize spending and
 
 * Analytics View:
 
-** Monthly bar chart for expenses vs. credits
+*  Monthly bar chart for expenses vs. credits
 
-** Category pie/doughnut chart
+*  Category pie/doughnut chart
 
-** Data labels and tooltips formatted as currency
+*  Data labels and tooltips formatted as currency
 
 * Dark Mode toggle, persisted in localStorage
 
