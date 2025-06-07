@@ -2,9 +2,9 @@
 A full-stack application to track your personal finances, visualize spending and income trends, and manage budgets. Built with a React front-end and an Express/MySQL back-end.
 
 ## Features
-*Add / Delete expenses and credits (income), categorized by type
+* Add / Delete expenses and credits (income), categorized by type
 
-**CSV import to bulk-upload transactions
+* CSV import to bulk-upload transactions
 
 Date & Name filters, search by category or transaction name
 
