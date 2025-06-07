@@ -20,7 +20,8 @@ A full-stack application to track your personal finances, visualize spending and
 
   * Data labels and tooltips formatted as currency
 
-* Dark Mode toggle, persisted in localStorage <br/>
+* Dark Mode toggle, persisted in localStorage
+  
  
 
 
