@@ -28,3 +28,6 @@ A full-stack application to track your personal finances, visualize spending and
 * Back-End: Node.js, Express, MySQL2, Multer, csv-parser, CORS
 
 * Database: MySQL
+
+## Project Structure
+![Screenshot 2025-06-07 190343](https://github.com/user-attachments/assets/668c4bc0-63c8-46b4-a53c-b929fcca2ddf)
