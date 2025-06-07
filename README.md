@@ -6,21 +6,21 @@ A full-stack application to track your personal finances, visualize spending and
 
 * CSV import to bulk-upload transactions
 
-Date & Name filters, search by category or transaction name
+* Date & Name filters, search by category or transaction name
 
-Sortable tables (by name, amount, date)
+* Sortable tables (by name, amount, date)
 
-Balance Modal with doughnut chart and category breakdown
+* Balance Modal with doughnut chart and category breakdown
 
-Analytics View:
+* Analytics View:
 
-Monthly bar chart for expenses vs. credits
+* Monthly bar chart for expenses vs. credits
 
-Category pie/doughnut chart
+* Category pie/doughnut chart
 
-Data labels and tooltips formatted as currency
+* Data labels and tooltips formatted as currency
 
-Dark Mode toggle, persisted in localStorage
+* Dark Mode toggle, persisted in localStorage
 
 ## Learn More
 
