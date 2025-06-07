@@ -44,12 +44,12 @@ A full-stack application to track your personal finances, visualize spending and
 
 ## Environment Variables
 Create a .env file in the backend folder:
-DB_HOST=localhost
-DB_USER=your_mysql_username
-DB_PASS=your_mysql_password
-DB_NAME=your_database_name
+-DB_HOST=localhost
+-DB_USER=your_mysql_username
+-DB_PASS=your_mysql_password
+-DB_NAME=your_database_name
 
-# Make sure your MySQL database has two tables:
+## Make sure your MySQL database has two tables:
 SQL
 ![Screenshot 2025-06-07 190949](https://github.com/user-attachments/assets/1f548d76-396d-4e83-a2f4-d9a47d01835b) <br/> <br/>
 
