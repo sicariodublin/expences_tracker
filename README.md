@@ -110,3 +110,5 @@ frontend/src/
 * App.css — styling for forms, tables, modals, and dark mode
 * Other assets and components (e.g. modal, form-group styles)
 
+##License
+This project is open-source and available under the MIT License.
