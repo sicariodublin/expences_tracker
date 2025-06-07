@@ -22,6 +22,7 @@ A full-stack application to track your personal finances, visualize spending and
 
 * Dark Mode toggle, persisted in localStorage
 
+
 ## Tech Stack
 * Front-End: React, Axios, Chart.js (+ plugins), CSS
 
@@ -30,14 +31,17 @@ A full-stack application to track your personal finances, visualize spending and
 * Database: MySQL
 
 
+
 ## Project Structure
-![Screenshot 2025-06-07 190343](https://github.com/user-attachments/assets/668c4bc0-63c8-46b4-a53c-b929fcca2ddf)
+![Screenshot 2025-06-07 190343](https://github.com/user-attachments/assets/668c4bc0-63c8-46b4-a53c-b929fcca2ddf)  
+
 
 
 ## Prerequisites
 * Node.js (v14+ recommended)
 
 * MySQL server
+
 
 
 ## Environment Variables
@@ -49,7 +53,8 @@ DB_NAME=your_database_name
 
 # Make sure your MySQL database has two tables:
 SQL
-![Screenshot 2025-06-07 190949](https://github.com/user-attachments/assets/1f548d76-396d-4e83-a2f4-d9a47d01835b)
+![Screenshot 2025-06-07 190949](https://github.com/user-attachments/assets/1f548d76-396d-4e83-a2f4-d9a47d01835b)  
+
 
 
 
@@ -80,6 +85,7 @@ The app will open at http://localhost:3000
 
 
 
+
 ## Available Scripts
 From within the frontend directory:
 * npm start
@@ -90,6 +96,7 @@ From within the frontend directory:
 From within the backend directory:
 * node server.js
   Starts the Express API server on port 5000
+  
 
 
 
@@ -102,7 +109,8 @@ From within the backend directory:
 
 4 - When “Show Analytics” is enabled, view monthly bar charts comparing expenses vs. income.
 
-5 - Toggle between light and dark themes using the 🌓 button.
+5 - Toggle between light and dark themes using the 🌓 button.  
+
 
 
 
@@ -116,6 +124,7 @@ frontend/src/
 * Analytics.js — reusable chart component for monthly trends (uses react-chartjs-2)
 * App.css — styling for forms, tables, modals, and dark mode
 * Other assets and components (e.g. modal, form-group styles)
+
 
 
 ## License
