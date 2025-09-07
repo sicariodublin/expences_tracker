@@ -1,15 +1,19 @@
 // Analytics.js
 import Chart from "chart.js/auto";
 import ChartDataLabels from "chartjs-plugin-datalabels";
-import React from "react";
 import { Bar } from "react-chartjs-2";
 import "./Analytics.css";
 
 Chart.register(ChartDataLabels);
 
-const Analytics = ({ filteredExpenses, filteredCredits }) => {
+// Fix: Change prop names to match what App.js is passing
+const Analytics = ({ expenses, credits }) => {
+  // Add safety checks to prevent undefined errors
+  const safeExpenses = expenses || [];
+  const safeCredits = credits || [];
+
   // Group monthly expenses
-  const monthlyExpenses = filteredExpenses.reduce((acc, exp) => {
+  const monthlyExpenses = safeExpenses.reduce((acc, exp) => {
     const month = exp.date.split("-")[1];
     if (!acc[month]) acc[month] = 0;
     acc[month] += parseFloat(exp.amount);
@@ -17,7 +21,7 @@ const Analytics = ({ filteredExpenses, filteredCredits }) => {
   }, {});
 
   // Group monthly credits
-  const monthlyCredits = filteredCredits.reduce((acc, cred) => {
+  const monthlyCredits = safeCredits.reduce((acc, cred) => {
     const month = cred.date.split("-")[1];
     if (!acc[month]) acc[month] = 0;
     acc[month] += parseFloat(cred.amount);
@@ -48,33 +52,35 @@ const Analytics = ({ filteredExpenses, filteredCredits }) => {
   // Chart options
   const options = {
     responsive: true,
+    plugins: {
+      legend: {
+        position: "top",
+      },
+      title: {
+        display: true,
+        text: "Monthly Expenses vs Credits",
+      },
+      datalabels: {
+        display: false,
+      },
+    },
     scales: {
       y: {
         beginAtZero: true,
-        title: { display: true, text: "Amount (€)" },
-      },
-      x: {
-        title: { display: true, text: "Month" },
       },
     },
-    plugins: {
-        legend: { position: "bottom" },
-        datalabels: {
-          anchor: "end",
-          align: "end",
-          formatter: (value) => `€${value.toFixed(2)}`,
-        },
-        tooltip: {
-          callbacks: {
-            label: (tooltipItem) => `€${tooltipItem.raw.toFixed(2)}`,
-          },
-        },
-      },
-    };      
+  };
 
   return (
     <div className="analytics-container">
+      <h2>📊 Analytics</h2>
+      {allMonths.length > 0 ? (
         <Bar data={data} options={options} />
+      ) : (
+        <div className="no-data">
+          <p>No data available for analytics. Add some expenses and income to see charts!</p>
+        </div>
+      )}
     </div>
   );
 };

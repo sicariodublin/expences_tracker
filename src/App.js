@@ -1,89 +1,134 @@
 import axios from "axios";
 import Chart from "chart.js/auto";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Analytics from "./Analytics";
 import "./App.css";
+import BudgetGoals from "./BudgetGoals";
 
 function App() {
-    // Dark Mode State
-    const [darkMode, setDarkMode] = useState(() => {
-      return localStorage.getItem("darkMode") === "true";
-    });
-  
-    // Use a single effect to add/remove dark-mode and persist the state
-    useEffect(() => {
-      if (darkMode) {
-        document.body.classList.add("dark-mode");
-      } else {
-        document.body.classList.remove("dark-mode");
-      }
-      localStorage.setItem("darkMode", darkMode);
-    }, [darkMode]);
-  
-    const toggleDarkMode = () => setDarkMode((prevMode) => !prevMode);
+  // Dark Mode State
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem("darkMode") === "true";
+  });
 
+  // Navigation State
+  const [activeTab, setActiveTab] = useState("dashboard");
+
+  // Use a single effect to add/remove dark-mode and persist the state
+  useEffect(() => {
+    const root = document.documentElement;
+    if (darkMode) {
+      root.classList.add("dark");
+      document.body.classList.add("dark-mode");
+    } else {
+      root.classList.remove("dark");
+      document.body.classList.remove("dark-mode");
+    }
+    localStorage.setItem("darkMode", darkMode);
+  }, [darkMode]);
+
+  const toggleDarkMode = () => setDarkMode((prevMode) => !prevMode);
+
+  // State Management - Updated to use string dates
   const [expenses, setExpenses] = useState([]);
   const [filteredExpenses, setFilteredExpenses] = useState([]);
   const [showExpenses, setShowExpenses] = useState(false);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]); // Today's date as string
   const [category, setCategory] = useState("");
   const [file, setFile] = useState(null);
   const [filterName, setFilterName] = useState("");
-  const [startDate, setStartDate] = useState("");
+  const [startDate, setStartDate] = useState(""); // Empty string for filters
   const [endDate, setEndDate] = useState("");
   const [total, setTotal] = useState(0);
   const [balance, setBalance] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isBreakdownModalOpen] = useState(false);
-  const [credits, setCredits] = useState([]); // Store multiple credit entries
+  const [credits, setCredits] = useState([]);
   const [creditName, setCreditName] = useState("");
   const [creditAmount, setCreditAmount] = useState("");
-  const [creditDate, setCreditDate] = useState("");
-  const [filteredCredits, setFilteredCredits] = useState([]); // Store filtered credits
+  const [creditDate, setCreditDate] = useState(new Date().toISOString().split('T')[0]); // Today's date as string
+  const [filteredCredits, setFilteredCredits] = useState([]);
   const [creditCategory, setCreditCategory] = useState("");
-  const [, setSortColumn] = useState(null);
+  const [sortColumn, setSortColumn] = useState(null);
   const [sortOrder, setSortOrder] = useState("asc");
+  const [loading, setLoading] = useState(false);
 
   const categories = [
+    "Salary",
+    "Freelance",
+    "Investment",
     "Groceries",
-    "Credit",
-    "Gym",
-    "Holidays",
-    "Carro",
+    "Transportation",
     "Entertainment",
-    "Eating Out",
-    "Fee",
-    "Self Care",
-    "Loan/CreditCard",
-    "Utilities",
-    "Transport",
+    "Dining Out",
     "Healthcare",
+    "Utilities",
     "Insurance",
     "Education",
-    "Refunds",
-    "Licenses",
+    "Shopping",
+    "Travel",
+    "Gym & Fitness",
+    "Self Care",
     "Gifts",
     "Family",
+    "Loans",
+    "Fees",
+    "Refunds",
     "Others",
   ];
 
-  // Fetch expenses from the backend
+  // Enhanced Date Input Component
+  const DateInput = ({ label, value, onChange, placeholder, max, min, clearable = false }) => {
+    const handleClear = () => {
+      onChange({ target: { value: '' } });
+    };
+
+    return (
+      <div className="form-group">
+        <label className="form-label">{label}</label>
+        <div className="date-input-wrapper">
+          <input
+            type="date"
+            className="form-input"
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            max={max}
+            min={min}
+          />
+          {clearable && value && (
+            <button 
+              type="button" 
+              className="date-clear-btn"
+              onClick={handleClear}
+              title="Clear date"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // API Functions
   const fetchExpenses = async () => {
     try {
+      setLoading(true);
       const res = await axios.get("http://localhost:5000/api/expenses");
       setExpenses(res.data);
       setFilteredExpenses(res.data);
     } catch (err) {
       console.error("Error fetching expenses:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchCredits = async () => {
     try {
       const res = await axios.get("http://localhost:5000/api/credits");
-      console.log("Fetched Credits:", res.data);
       setCredits(res.data);
       setFilteredCredits(res.data);
     } catch (err) {
@@ -99,9 +144,11 @@ function App() {
   useEffect(() => {
     const totalExpenses = filteredExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
     const totalCredits = filteredCredits.reduce((sum, cred) => sum + parseFloat(cred.amount), 0);
+    setTotal(totalExpenses);
     setBalance(totalCredits - totalExpenses);
   }, [filteredExpenses, filteredCredits]);
 
+  // Chart Effect for Modal
   useEffect(() => {
     if (isModalOpen) {
       setTimeout(() => {
@@ -129,13 +176,9 @@ function App() {
                 {
                   data: Object.values(categoryTotals),
                   backgroundColor: [
-                    "#FF6384",
-                    "#36A2EB",
-                    "#FFCE56",
-                    "#4BC0C0",
-                    "#9966FF",
-                    "#FF9F40",
-                    "#E7E9ED",
+                    "#3b82f6", "#10b981", "#f59e0b", "#ef4444",
+                    "#8b5cf6", "#06b6d4", "#84cc16", "#f97316",
+                    "#ec4899", "#6366f1", "#14b8a6", "#eab308"
                   ],
                 },
               ],
@@ -143,61 +186,17 @@ function App() {
             options: {
               responsive: true,
               plugins: {
-                legend: { position: "bottom" },
-                tooltip: {
-                  callbacks: {
-                    label: function (context) {
-                      return `€${context.parsed.toFixed(2)}`;
-                    },
-                  },
+                legend: {
+                  position: "bottom",
                 },
-                datalabels: {
-                  formatter: (value) => `€${value.toFixed(2)}`, // Rounds slice labels
-                },
-              }              
+              },
             },
           });
         }
-      }, 500);
+      }, 100);
     }
   }, [isModalOpen, filteredExpenses, filteredCredits]);
 
-  useEffect(() => {
-    if (isBreakdownModalOpen) {
-      setTimeout(() => {
-        const ctx = document.getElementById("categoryBreakdownChart");
-        if (ctx) {
-          const categoryTotals = {};
-          filteredExpenses.forEach((exp) => {
-            categoryTotals[exp.category] =
-              (categoryTotals[exp.category] || 0) + parseFloat(exp.amount);
-          });
-
-          new Chart(ctx, {
-            type: "doughnut",
-            data: {
-              labels: Object.keys(categoryTotals),
-              datasets: [
-                {
-                  data: Object.values(categoryTotals),
-                  backgroundColor: [
-                    "#ff6384",
-                    "#36a2eb",
-                    "#ffcd56",
-                    "#4bc0c0",
-                    "#9966ff",
-                    "#c9cbcf",
-                  ],
-                },
-              ],
-            },
-          });
-        }
-      }, 500);
-    }
-  }, [isBreakdownModalOpen, filteredExpenses]);
-
-  // Add a new expense
   const addExpense = async () => {
     if (!name || !amount || !date || !category) {
       alert("Please fill in all fields");
@@ -205,23 +204,28 @@ function App() {
     }
 
     try {
+      setLoading(true);
       await axios.post("http://localhost:5000/api/expenses", {
         name,
         amount,
-        date,
+        date, // Already in correct format (YYYY-MM-DD)
         category,
       });
-      fetchExpenses();
-      setShowExpenses(true); // Show expenses after adding
+      await fetchExpenses();
+      setShowExpenses(true);
       setName("");
       setAmount("");
-      setDate("");
+      setDate(new Date().toISOString().split('T')[0]); // Reset to today
       setCategory("");
     } catch (err) {
       console.error("Error adding expense:", err);
+      alert("Error adding expense. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Add Credit
   const addCredit = async () => {
     if (!creditName || !creditAmount || !creditDate || !creditCategory) {
       alert("Please fill in all credit fields");
@@ -229,423 +233,583 @@ function App() {
     }
 
     try {
+      setLoading(true);
       await axios.post("http://localhost:5000/api/credits", {
         name: creditName,
         amount: creditAmount,
-        date: creditDate,
+        date: creditDate, // Already in correct format (YYYY-MM-DD)
         category: creditCategory,
       });
-      fetchCredits(); // Refresh credit list
+      await fetchCredits();
       setCreditName("");
       setCreditAmount("");
-      setCreditDate("");
+      setCreditDate(new Date().toISOString().split('T')[0]); // Reset to today
       setCreditCategory("");
     } catch (err) {
       console.error("Error adding credit:", err);
+      alert("Error adding credit. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
-    
-  const handleSortExpenses = (column, dataType) => {
+
+  // Sorting Functions
+  const handleSortExpenses = (column, type) => {
+    const newOrder = sortColumn === column && sortOrder === "asc" ? "desc" : "asc";
     setSortColumn(column);
-    // Flip sorting order each time user clicks
-    const newOrder = sortOrder === "asc" ? "desc" : "asc";
     setSortOrder(newOrder);
-  
-    // Make a copy of your filteredExpenses
-    const sorted = [...filteredExpenses];
-  
-    sorted.sort((a, b) => {
-      if (dataType === "number") {
-        return newOrder === "asc"
-          ? parseFloat(a[column]) - parseFloat(b[column])
-          : parseFloat(b[column]) - parseFloat(a[column]);
-      } else if (dataType === "date") {
-        return newOrder === "asc"
-          ? new Date(a[column]) - new Date(b[column])
-          : new Date(b[column]) - new Date(a[column]);
+
+    const sorted = [...filteredExpenses].sort((a, b) => {
+      let aVal = a[column];
+      let bVal = b[column];
+
+      if (type === "number") {
+        aVal = parseFloat(aVal);
+        bVal = parseFloat(bVal);
+      } else if (type === "date") {
+        aVal = new Date(aVal);
+        bVal = new Date(bVal);
+      }
+
+      if (newOrder === "asc") {
+        return aVal > bVal ? 1 : -1;
       } else {
-        // string sort
-        return newOrder === "asc"
-          ? a[column].localeCompare(b[column])
-          : b[column].localeCompare(a[column]);
+        return aVal < bVal ? 1 : -1;
       }
     });
-  
+
     setFilteredExpenses(sorted);
   };
-  
-  const handleSortCredits = (column, dataType) => {
+
+  const handleSortCredits = (column, type) => {
+    const newOrder = sortColumn === column && sortOrder === "asc" ? "desc" : "asc";
     setSortColumn(column);
-    const newOrder = sortOrder === "asc" ? "desc" : "asc";
     setSortOrder(newOrder);
-  
-    const sorted = [...filteredCredits];
-  
-    sorted.sort((a, b) => {
-      if (dataType === "number") {
-        return newOrder === "asc"
-          ? parseFloat(a[column]) - parseFloat(b[column])
-          : parseFloat(b[column]) - parseFloat(a[column]);
-      } else if (dataType === "date") {
-        return newOrder === "asc"
-          ? new Date(a[column]) - new Date(b[column])
-          : new Date(b[column]) - new Date(a[column]);
+
+    const sorted = [...filteredCredits].sort((a, b) => {
+      let aVal = a[column];
+      let bVal = b[column];
+
+      if (type === "number") {
+        aVal = parseFloat(aVal);
+        bVal = parseFloat(bVal);
+      } else if (type === "date") {
+        aVal = new Date(aVal);
+        bVal = new Date(bVal);
+      }
+
+      if (newOrder === "asc") {
+        return aVal > bVal ? 1 : -1;
       } else {
-        return newOrder === "asc"
-          ? a[column].localeCompare(b[column])
-          : b[column].localeCompare(a[column]);
+        return aVal < bVal ? 1 : -1;
       }
     });
-  
+
     setFilteredCredits(sorted);
   };
 
-  // Upload CSV file
+  // Filter Functions
+  const applyFilters = () => {
+    let filtered = expenses;
+
+    if (filterName) {
+      filtered = filtered.filter((exp) =>
+        exp.name.toLowerCase().includes(filterName.toLowerCase())
+      );
+    }
+
+    if (startDate) {
+      filtered = filtered.filter((exp) => {
+        const expDate = new Date(exp.date).toISOString().split("T")[0];
+        return expDate >= startDate;
+      });
+    }
+
+    if (endDate) {
+      filtered = filtered.filter((exp) => {
+        const expDate = new Date(exp.date).toISOString().split("T")[0];
+        return expDate <= endDate;
+      });
+    }
+
+    setFilteredExpenses(filtered);
+
+    // Apply same filters to credits
+    let filteredCreds = credits;
+
+    if (filterName) {
+      filteredCreds = filteredCreds.filter((cred) =>
+        cred.name.toLowerCase().includes(filterName.toLowerCase())
+      );
+    }
+
+    if (startDate) {
+      filteredCreds = filteredCreds.filter((cred) => {
+        const credDate = new Date(cred.date).toISOString().split("T")[0];
+        return credDate >= startDate;
+      });
+    }
+
+    if (endDate) {
+      filteredCreds = filteredCreds.filter((cred) => {
+        const credDate = new Date(cred.date).toISOString().split("T")[0];
+        return credDate <= endDate;
+      });
+    }
+
+    setFilteredCredits(filteredCreds);
+    setShowExpenses(true);
+  };
+
+  const clearFilters = () => {
+    setFilterName("");
+    setStartDate("");
+    setEndDate("");
+    setFilteredExpenses(expenses);
+    setFilteredCredits(credits);
+  };
+
+  // File Upload Functions
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
   };
 
   const uploadCSV = async () => {
     if (!file) {
-      alert("Please select a CSV file");
+      alert("Please select a file first");
       return;
     }
 
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("csvFile", file);
 
     try {
-      const res = await axios.post(
-        "http://localhost:5000/api/upload",
-        formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        }
-      );
-      alert(res.data.message);
-      fetchExpenses();
+      setLoading(true);
+      await axios.post("http://localhost:5000/api/upload-csv", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      alert("CSV uploaded successfully!");
+      await fetchExpenses();
+      setFile(null);
     } catch (err) {
       console.error("Error uploading CSV:", err);
+      alert("Error uploading CSV. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Filter expenses
-  const applyFilters = () => {
-    let filteredExp = expenses;
-    let filteredCred = credits;
-
-    if (startDate && endDate) {
-      filteredExp = filteredExp.filter((exp) => {
-        const expDate = new Date(exp.date).toISOString().split("T")[0];
-        return expDate >= startDate && expDate <= endDate;
-      });
-
-      filteredCred = filteredCred.filter((cred) => {
-        const credDate = new Date(cred.date).toISOString().split("T")[0];
-        return credDate >= startDate && credDate <= endDate;
-      });
+  // Delete Functions
+  const deleteExpense = async (id) => {
+    if (window.confirm("Are you sure you want to delete this expense?")) {
+      try {
+        await axios.delete(`http://localhost:5000/api/expenses/${id}`);
+        await fetchExpenses();
+      } catch (err) {
+        console.error("Error deleting expense:", err);
+        alert("Error deleting expense. Please try again.");
+      }
     }
-
-    if (filterName) {
-      filteredExp = filteredExp.filter(
-        (exp) =>
-          exp.name.toLowerCase().includes(filterName.toLowerCase()) ||
-          exp.category.toLowerCase().includes(filterName.toLowerCase()) // 👈 Now searches in category
-      );
-
-      filteredCred = filteredCred.filter(
-        (cred) =>
-          cred.name.toLowerCase().includes(filterName.toLowerCase()) ||
-          cred.category.toLowerCase().includes(filterName.toLowerCase()) // 👈 Now searches in category
-      );
-    }
-
-    console.log("Filtered Expenses:", filteredExp); // 👈 Debugging log
-    console.log("Filtered Credits:", filteredCred); // 👈 Debugging log
-
-    setFilteredExpenses(filteredExp);
-    setFilteredCredits(filteredCred);
-    setShowExpenses(true);
-
-    // Calculate total amount for filtered results
-    const totalAmount = filteredExp.reduce(
-      (sum, exp) => sum + parseFloat(exp.amount),
-      0
-    );
-    setTotal(totalAmount);
   };
 
-  // Clear filters
-  const clearFilters = () => {
-    setFilterName("");
-    setStartDate("");
-    setEndDate("");
-    setFilteredExpenses(expenses); // Reset to all expenses
-    setShowExpenses(false);
-    setTotal(0); // Reset total amount
-
-    // Calculate total for all expenses
-    const totalAmount = expenses.reduce(
-      (sum, exp) => sum + parseFloat(exp.amount),
-      0
-    );
-    setTotal(totalAmount);
+  const deleteCredit = async (id) => {
+    if (window.confirm("Are you sure you want to delete this credit?")) {
+      try {
+        await axios.delete(`http://localhost:5000/api/credits/${id}`);
+        await fetchCredits();
+      } catch (err) {
+        console.error("Error deleting credit:", err);
+        alert("Error deleting credit. Please try again.");
+      }
+    }
   };
 
-  const categorizedExpenses = {};
-  filteredExpenses.forEach((exp) => {
-    if (!categorizedExpenses[exp.category])
-      categorizedExpenses[exp.category] = [];
-    categorizedExpenses[exp.category].push(exp);
-  });
-
-  const categorizedCredits = {};
-  filteredCredits.forEach((cred) => {
-    if (!categorizedCredits[cred.category])
-      categorizedCredits[cred.category] = [];
-    categorizedCredits[cred.category].push(cred);
-  });
-
-  return (
-      <div className={`app-container ${darkMode ? "dark" : ""}`}>
-        <h1>Expense Tracker</h1>
-        {/* Dark Mode Toggle */}
-        <button
-          onClick={toggleDarkMode}
-          className="dark-mode-toggle"
-          aria-label={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-        >
-          {darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"}
-        </button>
-          
-      {/* Form to add expenses manually */}
-      <div style={{ marginBottom: "20px" }}>
-        <h2>Add Expense</h2>
-        <input
-          type="text"
-          placeholder="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          style={{ marginRight: "10px" }}
-        />
-        <input
-          type="number"
-          placeholder="Amount"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          style={{ marginRight: "10px" }}
-        />
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          style={{ marginRight: "10px" }}
-        />
-        <div className="form-group">
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          >
-            <option value="">Select a category</option>
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-          <button onClick={addExpense}>Add Expense</button>
+  // Render Functions
+  const renderDashboardContent = () => (
+    <>
+      {/* Add Expense Form */}
+      <div className="card">
+        <div className="card-header">
+          <h2>💸 Add Expense</h2>
         </div>
-      </div>
-
-      {/* Form to add credit manually */}
-      <div style={{ marginBottom: "20px" }}>
-        <h2>Add Credit (Income)</h2>
-        <input
-          type="text"
-          placeholder="Name"
-          value={creditName}
-          onChange={(e) => setCreditName(e.target.value)}
-          style={{ marginRight: "10px" }}
-        />
-        <input
-          type="number"
-          placeholder="Amount"
-          value={creditAmount}
-          onChange={(e) => setCreditAmount(e.target.value)}
-          style={{ marginRight: "10px" }}
-        />
-        <input
-          type="date"
-          value={creditDate}
-          onChange={(e) => setCreditDate(e.target.value)}
-          style={{ marginRight: "10px" }}
-        />
-        <div className="form-group">
-          <select
-            value={creditCategory}
-            onChange={(e) => setCreditCategory(e.target.value)}
-          >
-            <option value="">Select a category</option>
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-          <button className="btn" onClick={addCredit}>
-            Add Credit
-          </button>
-          <button className="btn" onClick={() => setIsModalOpen(true)}>
-            Show Balance
-          </button>
-        </div>
-      </div>
-
-      {/* Form to upload CSV */}
-      <div style={{ marginBottom: "20px" }}>
-        <h2>Import File (CSV)</h2>
-        <input
-          type="file"
-          accept=".csv"
-          onChange={handleFileChange}
-          style={{ marginRight: "10px" }}
-        />
-        <button onClick={uploadCSV}>Upload CSV</button>
-      </div>
-
-      <div>
-        {/* Show analytics when desired, for example: */}
-        {showExpenses && (
-          <Analytics
-            filteredExpenses={filteredExpenses}
-            filteredCredits={filteredCredits}
+        <div className="form-grid">
+          <div className="form-group">
+            <label className="form-label">Expense Name</label>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Enter expense name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Amount (€)</label>
+            <input
+              type="number"
+              className="form-input"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              step="0.01"
+              min="0"
+            />
+          </div>
+          <DateInput
+            label="Date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            max={new Date().toISOString().split('T')[0]}
           />
-        )}
-      </div>
-
-      {/* Filters */}
-      <div style={{ marginBottom: "20px" }}>
-        <h2>Filters</h2>
-        <input
-          type="date"
-          placeholder="Start Date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          style={{ marginRight: "10px" }}
-        />
-        <input
-          type="date"
-          placeholder="End Date"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          style={{ marginRight: "10px" }}
-        />
-        <input
-          type="text"
-          placeholder="Filter by Name"
-          value={filterName}
-          onChange={(e) => setFilterName(e.target.value)}
-          style={{ marginRight: "10px" }}
-        />
-        <button onClick={applyFilters} style={{ marginRight: "10px" }}>
-          Apply Filters
+          <div className="form-group">
+            <label className="form-label">Category</label>
+            <select
+              className="form-select"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              <option value="">Select a category</option>
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <button 
+          onClick={addExpense} 
+          className="btn btn-primary"
+          disabled={loading}
+        >
+          {loading ? <span className="spinner"></span> : "Add Expense"}
         </button>
-        <button onClick={clearFilters}>Clear</button>
       </div>
 
-      {/* Display Total */}
+      {/* Add Credit Form */}
+      <div className="card">
+        <div className="card-header">
+          <h2>💰 Add Income</h2>
+        </div>
+        <div className="form-grid">
+          <div className="form-group">
+            <label className="form-label">Income Source</label>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Enter income source"
+              value={creditName}
+              onChange={(e) => setCreditName(e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Amount (€)</label>
+            <input
+              type="number"
+              className="form-input"
+              placeholder="0.00"
+              value={creditAmount}
+              onChange={(e) => setCreditAmount(e.target.value)}
+              step="0.01"
+              min="0"
+            />
+          </div>
+          <DateInput
+            label="Date"
+            value={creditDate}
+            onChange={(e) => setCreditDate(e.target.value)}
+            max={new Date().toISOString().split('T')[0]}
+          />
+          <div className="form-group">
+            <label className="form-label">Category</label>
+            <select
+              className="form-select"
+              value={creditCategory}
+              onChange={(e) => setCreditCategory(e.target.value)}
+            >
+              <option value="">Select a category</option>
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <button 
+          onClick={addCredit} 
+          className="btn btn-primary"
+          disabled={loading}
+        >
+          {loading ? <span className="spinner"></span> : "Add Income"}
+        </button>
+      </div>
+
+      {/* CSV Upload */}
+      <div className="card">
+        <div className="card-header">
+          <h2>📄 Upload CSV</h2>
+        </div>
+        <div className="form-group">
+          <input
+            type="file"
+            accept=".csv"
+            onChange={handleFileChange}
+            className="form-input"
+          />
+          <button 
+            onClick={uploadCSV} 
+            className="btn btn-secondary"
+            disabled={loading}
+          >
+            {loading ? <span className="spinner"></span> : "Upload CSV"}
+          </button>
+        </div>
+      </div>
+
+      {/* Filter Section */}
+      <div className="card">
+        <div className="card-header">
+          <h2>🔍 Filter Transactions</h2>
+        </div>
+        <div className="form-grid">
+          <div className="form-group">
+            <label className="form-label">Search by Name</label>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Enter name to search"
+              value={filterName}
+              onChange={(e) => setFilterName(e.target.value)}
+            />
+          </div>
+          <DateInput
+            label="Start Date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            max={endDate || new Date().toISOString().split('T')[0]}
+            clearable={true}
+          />
+          <DateInput
+            label="End Date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            min={startDate}
+            max={new Date().toISOString().split('T')[0]}
+            clearable={true}
+          />
+        </div>
+        <div className="button-group">
+          <button onClick={applyFilters} className="btn btn-primary">
+            Apply Filters
+          </button>
+          <button onClick={clearFilters} className="btn btn-secondary">
+            Clear Filters
+          </button>
+        </div>
+      </div>
+
+      {/* Expenses Table */}
       {showExpenses && (
-        <div style={{ marginBottom: "20px" }}>
-          <h3>Total Expenses: €{total.toFixed(2)}</h3>
-          <h3>
-            Total Credits: €
-            {filteredCredits
-              .reduce((sum, cred) => sum + parseFloat(cred.amount), 0)
-              .toFixed(2)}
-          </h3>
+        <div className="table-container">
+          <div className="card-header">
+            <h2>💸 Expenses</h2>
+            <span className="text-sm text-gray-600">
+              {filteredExpenses.length} items
+            </span>
+          </div>
+          <table className="styled-table">
+            <thead>
+              <tr>
+                <th onClick={() => handleSortExpenses("name", "string")}>
+                  Name {sortColumn === "name" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
+                <th onClick={() => handleSortExpenses("amount", "number")}>
+                  Amount {sortColumn === "amount" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
+                <th onClick={() => handleSortExpenses("date", "date")}>
+                  Date {sortColumn === "date" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
+                <th>Category</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredExpenses.map((expense) => (
+                <tr key={expense.id}>
+                  <td>{expense.name}</td>
+                  <td>€{parseFloat(expense.amount).toFixed(2)}</td>
+                  <td>{new Date(expense.date).toLocaleDateString()}</td>
+                  <td>
+                    <span className="category-badge">{expense.category}</span>
+                  </td>
+                  <td>
+                    <button
+                      onClick={() => deleteExpense(expense.id)}
+                      className="btn btn-danger btn-sm"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-        {showExpenses && (
-        <div>
-            <h2>💸 Expenses</h2>
-            <table className="styled-table">
+      {/* Credits Table */}
+      {showExpenses && (
+        <div className="table-container">
+          <div className="card-header">
+            <h2>💰 Income</h2>
+            <span className="text-sm text-gray-600">
+              {filteredCredits.length} items
+            </span>
+          </div>
+          <table className="styled-table">
             <thead>
-                <tr>
-                <th onClick={() => handleSortExpenses("name", "string")}>Name</th>
-                <th onClick={() => handleSortExpenses("amount", "number")}>Amount</th>
-                <th onClick={() => handleSortExpenses("date", "date")}>Date</th>
-                </tr>
+              <tr>
+                <th onClick={() => handleSortCredits("name", "string")}>
+                  Source {sortColumn === "name" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
+                <th onClick={() => handleSortCredits("amount", "number")}>
+                  Amount {sortColumn === "amount" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
+                <th onClick={() => handleSortCredits("date", "date")}>
+                  Date {sortColumn === "date" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
+                <th>Category</th>
+                <th>Actions</th>
+              </tr>
             </thead>
             <tbody>
-                {filteredExpenses.map((exp) => (
-                <tr key={exp.id}>
-                    <td>{exp.name}</td>
-                    <td>€{exp.amount}</td>
-                    <td>{new Date(exp.date).toISOString().split("T")[0]}</td>
+              {filteredCredits.map((credit) => (
+                <tr key={credit.id}>
+                  <td>{credit.name}</td>
+                  <td>€{parseFloat(credit.amount).toFixed(2)}</td>
+                  <td>{new Date(credit.date).toLocaleDateString()}</td>
+                  <td>
+                    <span className="category-badge">{credit.category}</span>
+                  </td>
+                  <td>
+                    <button
+                      onClick={() => deleteCredit(credit.id)}
+                      className="btn btn-danger btn-sm"
+                    >
+                      Delete
+                    </button>
+                  </td>
                 </tr>
-                ))}
+              ))}
             </tbody>
-            </table>
+          </table>
         </div>
-        )}
+      )}
 
-        {showExpenses && (
-        <div>
-            <h2>💰 Credits</h2>
-            <table className="styled-table">
-            <thead>
-                <tr>
-                <th onClick={() => handleSortCredits("name", "string")}>Name</th>
-                <th onClick={() => handleSortCredits("amount", "number")}>Amount</th>
-                <th onClick={() => handleSortCredits("date", "date")}>Date</th>
-                </tr>
-            </thead>
-            <tbody>
-                {filteredCredits.map((cred) => (
-                <tr key={cred.id}>
-                    <td>{cred.name}</td>
-                    <td>€{cred.amount}</td>
-                    <td>{new Date(cred.date).toISOString().split("T")[0]}</td>
-                </tr>
-                ))}
-            </tbody>
-            </table>
+      {/* Summary Cards */}
+      <div className="summary-grid">
+        <div className="summary-card expenses">
+          <div className="summary-icon">💸</div>
+          <div className="summary-content">
+            <h3>Total Expenses</h3>
+            <p className="summary-amount">€{total.toFixed(2)}</p>
+          </div>
         </div>
-        )}
+        <div className="summary-card income">
+          <div className="summary-icon">💰</div>
+          <div className="summary-content">
+            <h3>Total Income</h3>
+            <p className="summary-amount">
+              €{filteredCredits.reduce((sum, cred) => sum + parseFloat(cred.amount), 0).toFixed(2)}
+            </p>
+          </div>
+        </div>
+        <div className={`summary-card balance ${balance >= 0 ? 'positive' : 'negative'}`}>
+          <div className="summary-icon">{balance >= 0 ? '📈' : '📉'}</div>
+          <div className="summary-content">
+            <h3>Balance</h3>
+            <p className="summary-amount">€{balance.toFixed(2)}</p>
+          </div>
+        </div>
+      </div>
 
+      {/* Chart Modal */}
+      <div className="chart-section">
+        <button 
+          onClick={() => setIsModalOpen(true)} 
+          className="btn btn-primary"
+        >
+          📊 View Category Chart
+        </button>
+      </div>
 
-      {/* Balance Modal */}
       {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h2>
-              <strong>Balance Summary</strong>
-            </h2>
-            <p>
-              <strong>Total Credit:</strong> €
-              {filteredCredits
-                .reduce((sum, cred) => sum + parseFloat(cred.amount), 0)
-                .toFixed(2)}
-            </p>
-            <p>
-              <strong>Total Expenses:</strong> €
-              {filteredExpenses
-                .reduce((sum, exp) => sum + parseFloat(exp.amount), 0)
-                .toFixed(2)}
-            </p>
-            <p>
-              <strong>Balance:</strong> €{balance.toFixed(2)}
-            </p>
-
-            {/* Chart Breakdown of Expenses and Credits by Category */}
-            <h3>📊 Category Breakdown</h3>
-            <canvas id="categoryChart"></canvas>
-
-            <button onClick={() => setIsModalOpen(false)}>Close</button>
+        <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>📊 Spending by Category</h2>
+              <button 
+                onClick={() => setIsModalOpen(false)} 
+                className="modal-close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="chart-container">
+              <canvas id="categoryChart"></canvas>
+            </div>
           </div>
         </div>
       )}
+    </>
+  );
+
+  return (
+    <div className={`app ${darkMode ? 'dark-mode' : ''}`}>
+      <header className="header">
+        <div className="header-content">
+          <h1 className="header-title">💰 Expense Tracker</h1>
+          <button 
+            onClick={toggleDarkMode} 
+            className="dark-mode-toggle"
+            aria-label="Toggle dark mode"
+          >
+            {darkMode ? '☀️' : '🌙'}
+          </button>
+        </div>
+      </header>
+
+      <nav className="nav-tabs">
+        <button 
+          className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`}
+          onClick={() => setActiveTab('dashboard')}
+        >
+          🏠 Dashboard
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'budget' ? 'active' : ''}`}
+          onClick={() => setActiveTab('budget')}
+        >
+          🎯 Budget Goals
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'analytics' ? 'active' : ''}`}
+          onClick={() => setActiveTab('analytics')}
+        >
+          📊 Analytics
+        </button>
+      </nav>
+
+      <main className="main-content">
+        <div className="tab-content">
+          {activeTab === "dashboard" && renderDashboardContent()}
+          {activeTab === "budget" && <BudgetGoals />}
+          {activeTab === "analytics" && <Analytics expenses={expenses} credits={credits} />}
+        </div>
+      </main>
     </div>
   );
 }
