@@ -1,70 +1,120 @@
-# Getting Started with Create React App
+# Expense Tracker
+A full-stack application to track your personal finances, visualize spending and income trends, and manage budgets. Built with a React front-end and an Express/MySQL back-end.
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## Features
+* Add expenses and credits (income), categorized by type
+
+* CSV import to bulk-upload transactions
+
+* Date & Name filters, search by category or transaction name
+
+* Sortable tables (by name, amount, date)
+
+* Balance Modal with doughnut chart and category breakdown
+
+* Analytics View:
+
+  * Monthly bar chart for expenses vs. credits
+
+  * Category pie/doughnut chart
+
+  * Data labels and tooltips formatted as currency
+
+* Dark Mode toggle, persisted in localStorage <br/> <br/>
+  
+
+## Tech Stack
+* Front-End: React, Axios, Chart.js (+ plugins), CSS
+
+* Back-End: Node.js, Express, MySQL2, Multer, csv-parser, CORS
+
+* Database: MySQL <br/> <br/>
+
+
+## Project Structure
+![Screenshot 2025-06-07 190343](https://github.com/user-attachments/assets/668c4bc0-63c8-46b4-a53c-b929fcca2ddf) <br/> <br/>
+
+
+## Prerequisites
+* Node.js (v14+ recommended)
+
+* MySQL server <br/> <br/>
+
+
+
+## Environment Variables
+Create a .env file in the backend folder:
+- DB_HOST=localhost
+- DB_USER=your_mysql_username
+- DB_PASS=your_mysql_password
+- DB_NAME=your_database_name <br/> <br/>
+
+## Make sure your MySQL database has two tables:
+SQL
+![Screenshot 2025-06-07 190949](https://github.com/user-attachments/assets/1f548d76-396d-4e83-a2f4-d9a47d01835b) <br/> <br/>
+
+
+# Getting Started <br/> <br/>
+
+## Back-End
+1 - Navigate into the backend folder:
+* cd backend
+
+2 - Install dependencies:
+* npm install express mysql2 cors multer csv-parser dotenv
+
+3 - Start the server:
+* node server.js
+The API will be available at http://localhost:5000/api/...
+
+
+## Front-End
+1 - Navigate into the frontend folder:
+* cd frontend 
+
+2 - Install dependencies:
+* npm install
+
+3 - Start the React development server:
+* npm start
+The app will open at http://localhost:3000 <br/> <br/>
+
 
 ## Available Scripts
+From within the frontend directory:
+* npm start
+  Starts React in development mode on http://localhost:3000
+* npm run build
+  Bundles the app into static files for production (outputs to build/)
+  
+From within the backend directory:
+* node server.js
+  Starts the Express API server on port 5000 <br/> <br/>
+  
 
-In the project directory, you can run:
+## Usage
+1 - Add expenses or credits via the form.
 
-### `npm start`
+2 - Filter by date range or search by name/category.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+3 - Click Show Balance to view your overall balance and a category doughnut chart.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+4 - When “Show Analytics” is enabled, view monthly bar charts comparing expenses vs. income.
 
-### `npm test`
+5 - Toggle between light and dark themes using the 🌓 button. <br/> <br/>
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
 
-### `npm run build`
+## Folder Breakdown
+### backend/
+* server.js — defines routes for /api/expenses and /api/credits, handles CSV upload
+* .env — database credentials
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### frontend/src/
+* App.js — main component managing state, fetch/post API calls, UI layout
+* Analytics.js — reusable chart component for monthly trends (uses react-chartjs-2)
+* App.css — styling for forms, tables, modals, and dark mode
+* Other assets and components (e.g. modal, form-group styles) <br/> <br/>
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+## License
+This project is open-source and available under the [MIT License](./LICENSE).
