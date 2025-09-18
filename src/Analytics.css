@@ -1,20 +1,147 @@
-/* App.css or Analytics.css */
 .analytics-container {
-    width: 700px;      /* Set desired width */
-    height: 500px;     /* Set desired height */
-    margin: 0 auto;    /* Center the container */
-    position: relative;
-    background-color: #fefeff;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    padding: 15px;
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.analytics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.analytics-header h2 {
+  margin: 0;
+  color: var(--text-color);
+}
+
+.analytics-controls {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: end;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 120px;
+}
+
+.control-group .form-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.control-group .form-input {
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--card-bg);
+  color: var(--text-color);
+  font-size: 0.875rem;
+  margin-left: -1px;
+}
+
+.analytics-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.summary-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+  transition: transform 0.2s ease;
+}
+
+.summary-card:hover {
+  transform: translateY(-2px);
+}
+
+.summary-card h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summary-card .amount {
+  font-size: 1.5rem;
+  font-weight: 700;
+  display: block;
+}
+
+.summary-card.expenses .amount {
+  color: var(--danger-color);
+}
+
+.summary-card.credits .amount {
+  color: var(--success-color);
+}
+
+.summary-card.net.positive .amount {
+  color: var(--success-color);
+}
+
+.summary-card.net.negative .amount {
+  color: var(--danger-color);
+}
+
+.chart-container {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 0rem;
+  min-height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 3rem;
+}
+
+.loading-state {
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.no-data {
+  text-align: center;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .analytics-container {
+    padding: 1rem;
   }
-  
-  .analytics-container canvas {
-    /* Make sure the canvas fills the container */
-    width: 100% !important;
-    height: 100% !important;
-    display: block;
-    box-sizing: border-box;
+
+  .analytics-header {
+    flex-direction: column;
+    align-items: stretch;
   }
-  
+
+  .analytics-controls {
+    justify-content: space-between;
+  }
+
+  .control-group {
+    min-width: auto;
+    flex: 1;
+  }
+
+  .chart-container {
+    padding: 1rem;
+  }
+}

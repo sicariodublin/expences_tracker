@@ -14,6 +14,75 @@
   color: var(--text-primary);
 }
 
+.budget-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.month-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.month-input {
+  min-width: 150px;
+}
+
+.overall-progress {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  border: 1px solid var(--border-color);
+}
+
+.overall-progress h3 {
+  margin: 0 0 1rem 0;
+  color: var(--text-color);
+  font-size: 1.2rem;
+}
+
+.summary-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: var(--bg-color);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.stat-label {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.stat-value {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.stat-value.spent {
+  color: var(--danger-color);
+}
+
+.stat-value.budget {
+  color: var(--primary-color);
+}
+
+.stat-value.progress {
+  font-weight: 700;
+}
+
 .add-goal-form {
   background: var(--white);
   border-radius: var(--radius-lg);
@@ -115,7 +184,7 @@
 
 .progress-percentage {
   position: absolute;
-  top: 50%;
+  top: 25%;
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: var(--font-size-xs);
@@ -132,6 +201,12 @@
 .empty-state {
   text-align: center;
   padding: var(--spacing-8);
+  color: var(--text-secondary);
+}
+
+.loading-state {
+  text-align: center;
+  padding: 2rem;
   color: var(--text-secondary);
 }
 
@@ -168,5 +243,18 @@
   
   .budget-card {
     padding: var(--spacing-4);
+  }
+  
+  .budget-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .month-selector {
+    justify-content: space-between;
+  }
+  
+  .summary-stats {
+    grid-template-columns: 1fr;
   }
 }

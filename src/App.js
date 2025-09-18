@@ -35,11 +35,11 @@ function App() {
   const [showExpenses, setShowExpenses] = useState(false);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]); // Today's date as string
+  const [date, setDate] = useState("");
   const [category, setCategory] = useState("");
   const [file, setFile] = useState(null);
   const [filterName, setFilterName] = useState("");
-  const [startDate, setStartDate] = useState(""); // Empty string for filters
+  const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [total, setTotal] = useState(0);
   const [balance, setBalance] = useState(0);
@@ -47,7 +47,9 @@ function App() {
   const [credits, setCredits] = useState([]);
   const [creditName, setCreditName] = useState("");
   const [creditAmount, setCreditAmount] = useState("");
-  const [creditDate, setCreditDate] = useState(new Date().toISOString().split('T')[0]); // Today's date as string
+  const [creditDate, setCreditDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
   const [filteredCredits, setFilteredCredits] = useState([]);
   const [creditCategory, setCreditCategory] = useState("");
   const [sortColumn, setSortColumn] = useState(null);
@@ -55,62 +57,31 @@ function App() {
   const [loading, setLoading] = useState(false);
 
   const categories = [
-    "Salary",
-    "Freelance",
-    "Investment",
-    "Groceries",
-    "Transportation",
-    "Entertainment",
-    "Dining Out",
-    "Healthcare",
-    "Utilities",
-    "Insurance",
+    "Carro",
+    "Credit",
+    "Eating Out",
     "Education",
-    "Shopping",
-    "Travel",
-    "Gym & Fitness",
-    "Self Care",
-    "Gifts",
+    "Entertainment",
     "Family",
-    "Loans",
     "Fees",
-    "Refunds",
+    "Freelance",
+    "Gifts",
+    "Groceries",
+    "Gym",
+    "Healthcare",
+    "Holidays",
+    "Insurance",
+    "Investment",
+    "Licenses",
+    "Loan/Credit Card",
     "Others",
+    "Refunds",
+    "Salary",
+    "Self-Care",
+    "Shopping",
+    "Transport",
+    "Utilities",
   ];
-
-  // Enhanced Date Input Component
-  const DateInput = ({ label, value, onChange, placeholder, max, min, clearable = false }) => {
-    const handleClear = () => {
-      onChange({ target: { value: '' } });
-    };
-
-    return (
-      <div className="form-group">
-        <label className="form-label">{label}</label>
-        <div className="date-input-wrapper">
-          <input
-            type="date"
-            className="form-input"
-            value={value}
-            onChange={onChange}
-            placeholder={placeholder}
-            max={max}
-            min={min}
-          />
-          {clearable && value && (
-            <button 
-              type="button" 
-              className="date-clear-btn"
-              onClick={handleClear}
-              title="Clear date"
-            >
-              ×
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  };
 
   // API Functions
   const fetchExpenses = async () => {
@@ -142,8 +113,14 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const totalExpenses = filteredExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
-    const totalCredits = filteredCredits.reduce((sum, cred) => sum + parseFloat(cred.amount), 0);
+    const totalExpenses = filteredExpenses.reduce(
+      (sum, exp) => sum + parseFloat(exp.amount),
+      0
+    );
+    const totalCredits = filteredCredits.reduce(
+      (sum, cred) => sum + parseFloat(cred.amount),
+      0
+    );
     setTotal(totalExpenses);
     setBalance(totalCredits - totalExpenses);
   }, [filteredExpenses, filteredCredits]);
@@ -176,9 +153,18 @@ function App() {
                 {
                   data: Object.values(categoryTotals),
                   backgroundColor: [
-                    "#3b82f6", "#10b981", "#f59e0b", "#ef4444",
-                    "#8b5cf6", "#06b6d4", "#84cc16", "#f97316",
-                    "#ec4899", "#6366f1", "#14b8a6", "#eab308"
+                    "#3b82f6",
+                    "#10b981",
+                    "#f59e0b",
+                    "#ef4444",
+                    "#8b5cf6",
+                    "#06b6d4",
+                    "#84cc16",
+                    "#f97316",
+                    "#ec4899",
+                    "#6366f1",
+                    "#14b8a6",
+                    "#eab308",
                   ],
                 },
               ],
@@ -186,76 +172,68 @@ function App() {
             options: {
               responsive: true,
               plugins: {
-                legend: {
-                  position: "bottom",
+                legend: { position: "bottom" },
+                tooltip: {
+                  callbacks: {
+                    label: function (context) {
+                      return `€${context.parsed.toFixed(2)}`;
+                    },
+                  },
                 },
               },
             },
           });
         }
-      }, 100);
+      }, 500);
     }
   }, [isModalOpen, filteredExpenses, filteredCredits]);
 
   const addExpense = async () => {
-    if (!name || !amount || !date || !category) {
-      alert("Please fill in all fields");
-      return;
-    }
-
+    if (!name || !amount || !date || !category)
+      return alert("Please fill in all fields");
     try {
-      setLoading(true);
       await axios.post("http://localhost:5000/api/expenses", {
         name,
         amount,
-        date, // Already in correct format (YYYY-MM-DD)
+        date,
         category,
       });
-      await fetchExpenses();
+      fetchExpenses();
       setShowExpenses(true);
       setName("");
       setAmount("");
-      setDate(new Date().toISOString().split('T')[0]); // Reset to today
+      setDate("");
       setCategory("");
     } catch (err) {
       console.error("Error adding expense:", err);
-      alert("Error adding expense. Please try again.");
-    } finally {
-      setLoading(false);
     }
   };
 
   // Add Credit
   const addCredit = async () => {
-    if (!creditName || !creditAmount || !creditDate || !creditCategory) {
-      alert("Please fill in all credit fields");
-      return;
-    }
-
+    if (!creditName || !creditAmount || !creditDate || !creditCategory)
+      return alert("Please fill in all credit fields");
     try {
-      setLoading(true);
       await axios.post("http://localhost:5000/api/credits", {
         name: creditName,
         amount: creditAmount,
-        date: creditDate, // Already in correct format (YYYY-MM-DD)
+        date: creditDate,
         category: creditCategory,
       });
-      await fetchCredits();
+      fetchCredits();
       setCreditName("");
       setCreditAmount("");
-      setCreditDate(new Date().toISOString().split('T')[0]); // Reset to today
+      setCreditDate("");
       setCreditCategory("");
     } catch (err) {
       console.error("Error adding credit:", err);
-      alert("Error adding credit. Please try again.");
-    } finally {
-      setLoading(false);
     }
   };
 
   // Sorting Functions
   const handleSortExpenses = (column, type) => {
-    const newOrder = sortColumn === column && sortOrder === "asc" ? "desc" : "asc";
+    const newOrder =
+      sortColumn === column && sortOrder === "asc" ? "desc" : "asc";
     setSortColumn(column);
     setSortOrder(newOrder);
 
@@ -282,7 +260,8 @@ function App() {
   };
 
   const handleSortCredits = (column, type) => {
-    const newOrder = sortColumn === column && sortOrder === "asc" ? "desc" : "asc";
+    const newOrder =
+      sortColumn === column && sortOrder === "asc" ? "desc" : "asc";
     setSortColumn(column);
     setSortOrder(newOrder);
 
@@ -313,8 +292,10 @@ function App() {
     let filtered = expenses;
 
     if (filterName) {
-      filtered = filtered.filter((exp) =>
-        exp.name.toLowerCase().includes(filterName.toLowerCase())
+      filtered = filtered.filter(
+        (exp) =>
+          exp.category.toLowerCase().includes(filterName.toLowerCase()) ||
+          exp.name.toLowerCase().includes(filterName.toLowerCase())
       );
     }
 
@@ -338,8 +319,10 @@ function App() {
     let filteredCreds = credits;
 
     if (filterName) {
-      filteredCreds = filteredCreds.filter((cred) =>
-        cred.name.toLowerCase().includes(filterName.toLowerCase())
+      filteredCreds = filteredCreds.filter(
+        (cred) =>
+          cred.category.toLowerCase().includes(filterName.toLowerCase()) ||
+          cred.name.toLowerCase().includes(filterName.toLowerCase())
       );
     }
 
@@ -367,6 +350,8 @@ function App() {
     setEndDate("");
     setFilteredExpenses(expenses);
     setFilteredCredits(credits);
+    setShowExpenses(false);
+    setTotal(0);
   };
 
   // File Upload Functions
@@ -381,11 +366,11 @@ function App() {
     }
 
     const formData = new FormData();
-    formData.append("csvFile", file);
+    formData.append("file", file);
 
     try {
       setLoading(true);
-      await axios.post("http://localhost:5000/api/upload-csv", formData, {
+      await axios.post("http://localhost:5000/api/upload", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
@@ -429,6 +414,40 @@ function App() {
   // Render Functions
   const renderDashboardContent = () => (
     <>
+      {/* Summary Cards */}
+      <div className="summary-grid">
+        <div className="summary-card expenses">
+          <div className="summary-icon">💸</div>
+          <div className="summary-content">
+            <h3>Total Expenses</h3>
+            <p className="summary-amount">€{total.toFixed(2)}</p>
+          </div>
+        </div>
+        <div className="summary-card income">
+          <div className="summary-icon">💰</div>
+          <div className="summary-content">
+            <h3>Total Income</h3>
+            <p className="summary-amount">
+              €
+              {filteredCredits
+                .reduce((sum, cred) => sum + parseFloat(cred.amount), 0)
+                .toFixed(2)}
+            </p>
+          </div>
+        </div>
+        <div
+          className={`summary-card balance ${
+            balance >= 0 ? "positive" : "negative"
+          }`}
+        >
+          <div className="summary-icon">{balance >= 0 ? "📈" : "📉"}</div>
+          <div className="summary-content">
+            <h3>Balance</h3>
+            <p className="summary-amount">€{balance.toFixed(2)}</p>
+          </div>
+        </div>
+      </div>
+
       {/* Add Expense Form */}
       <div className="card">
         <div className="card-header">
@@ -450,19 +469,23 @@ function App() {
             <input
               type="number"
               className="form-input"
-              placeholder="0.00"
+              placeholder="Enter amount"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               step="0.01"
               min="0"
             />
           </div>
-          <DateInput
-            label="Date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            max={new Date().toISOString().split('T')[0]}
-          />
+          <div className="form-group">
+            <label className="form-label">Date</label>
+            <input
+              type="date"
+              className="form-input"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              max={new Date().toISOString().split("T")[0]}
+            />
+          </div>
           <div className="form-group">
             <label className="form-label">Category</label>
             <select
@@ -479,8 +502,8 @@ function App() {
             </select>
           </div>
         </div>
-        <button 
-          onClick={addExpense} 
+        <button
+          onClick={addExpense}
           className="btn btn-primary"
           disabled={loading}
         >
@@ -516,12 +539,16 @@ function App() {
               min="0"
             />
           </div>
-          <DateInput
-            label="Date"
-            value={creditDate}
-            onChange={(e) => setCreditDate(e.target.value)}
-            max={new Date().toISOString().split('T')[0]}
-          />
+          <div className="form-group">
+            <label className="form-label">Date</label>
+            <input
+              type="date"
+              className="form-input"
+              value={creditDate}
+              onChange={(e) => setCreditDate(e.target.value)}
+              max={new Date().toISOString().split("T")[0]}
+            />
+          </div>
           <div className="form-group">
             <label className="form-label">Category</label>
             <select
@@ -538,8 +565,8 @@ function App() {
             </select>
           </div>
         </div>
-        <button 
-          onClick={addCredit} 
+        <button
+          onClick={addCredit}
           className="btn btn-primary"
           disabled={loading}
         >
@@ -559,8 +586,8 @@ function App() {
             onChange={handleFileChange}
             className="form-input"
           />
-          <button 
-            onClick={uploadCSV} 
+          <button
+            onClick={uploadCSV}
             className="btn btn-secondary"
             disabled={loading}
           >
@@ -575,31 +602,38 @@ function App() {
           <h2>🔍 Filter Transactions</h2>
         </div>
         <div className="form-grid">
+          {/* Replace the DateInput components with simple date inputs  */}
           <div className="form-group">
-            <label className="form-label">Search by Name</label>
+            <label className="form-label">Search by Name or Category</label>
             <input
               type="text"
               className="form-input"
-              placeholder="Enter name to search"
+              placeholder="Enter name or category..."
               value={filterName}
               onChange={(e) => setFilterName(e.target.value)}
             />
           </div>
-          <DateInput
-            label="Start Date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            max={endDate || new Date().toISOString().split('T')[0]}
-            clearable={true}
-          />
-          <DateInput
-            label="End Date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            min={startDate}
-            max={new Date().toISOString().split('T')[0]}
-            clearable={true}
-          />
+          <div className="form-group">
+            <label className="form-label">Start Date</label>
+            <input
+              type="date"
+              className="form-input"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              max={endDate || new Date().toISOString().split("T")[0]}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">End Date</label>
+            <input
+              type="date"
+              className="form-input"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              min={startDate}
+              max={new Date().toISOString().split("T")[0]}
+            />
+          </div>
         </div>
         <div className="button-group">
           <button onClick={applyFilters} className="btn btn-primary">
@@ -624,13 +658,16 @@ function App() {
             <thead>
               <tr>
                 <th onClick={() => handleSortExpenses("name", "string")}>
-                  Name {sortColumn === "name" && (sortOrder === "asc" ? "↑" : "↓")}
+                  Name{" "}
+                  {sortColumn === "name" && (sortOrder === "asc" ? "↑" : "↓")}
                 </th>
                 <th onClick={() => handleSortExpenses("amount", "number")}>
-                  Amount {sortColumn === "amount" && (sortOrder === "asc" ? "↑" : "↓")}
+                  Amount{" "}
+                  {sortColumn === "amount" && (sortOrder === "asc" ? "↑" : "↓")}
                 </th>
                 <th onClick={() => handleSortExpenses("date", "date")}>
-                  Date {sortColumn === "date" && (sortOrder === "asc" ? "↑" : "↓")}
+                  Date{" "}
+                  {sortColumn === "date" && (sortOrder === "asc" ? "↑" : "↓")}
                 </th>
                 <th>Category</th>
                 <th>Actions</th>
@@ -673,13 +710,16 @@ function App() {
             <thead>
               <tr>
                 <th onClick={() => handleSortCredits("name", "string")}>
-                  Source {sortColumn === "name" && (sortOrder === "asc" ? "↑" : "↓")}
+                  Source{" "}
+                  {sortColumn === "name" && (sortOrder === "asc" ? "↑" : "↓")}
                 </th>
                 <th onClick={() => handleSortCredits("amount", "number")}>
-                  Amount {sortColumn === "amount" && (sortOrder === "asc" ? "↑" : "↓")}
+                  Amount{" "}
+                  {sortColumn === "amount" && (sortOrder === "asc" ? "↑" : "↓")}
                 </th>
                 <th onClick={() => handleSortCredits("date", "date")}>
-                  Date {sortColumn === "date" && (sortOrder === "asc" ? "↑" : "↓")}
+                  Date{" "}
+                  {sortColumn === "date" && (sortOrder === "asc" ? "↑" : "↓")}
                 </th>
                 <th>Category</th>
                 <th>Actions</th>
@@ -709,37 +749,10 @@ function App() {
         </div>
       )}
 
-      {/* Summary Cards */}
-      <div className="summary-grid">
-        <div className="summary-card expenses">
-          <div className="summary-icon">💸</div>
-          <div className="summary-content">
-            <h3>Total Expenses</h3>
-            <p className="summary-amount">€{total.toFixed(2)}</p>
-          </div>
-        </div>
-        <div className="summary-card income">
-          <div className="summary-icon">💰</div>
-          <div className="summary-content">
-            <h3>Total Income</h3>
-            <p className="summary-amount">
-              €{filteredCredits.reduce((sum, cred) => sum + parseFloat(cred.amount), 0).toFixed(2)}
-            </p>
-          </div>
-        </div>
-        <div className={`summary-card balance ${balance >= 0 ? 'positive' : 'negative'}`}>
-          <div className="summary-icon">{balance >= 0 ? '📈' : '📉'}</div>
-          <div className="summary-content">
-            <h3>Balance</h3>
-            <p className="summary-amount">€{balance.toFixed(2)}</p>
-          </div>
-        </div>
-      </div>
-
       {/* Chart Modal */}
       <div className="chart-section">
-        <button 
-          onClick={() => setIsModalOpen(true)} 
+        <button
+          onClick={() => setIsModalOpen(true)}
           className="btn btn-primary"
         >
           📊 View Category Chart
@@ -751,8 +764,8 @@ function App() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>📊 Spending by Category</h2>
-              <button 
-                onClick={() => setIsModalOpen(false)} 
+              <button
+                onClick={() => setIsModalOpen(false)}
                 className="modal-close"
               >
                 ×
@@ -768,36 +781,36 @@ function App() {
   );
 
   return (
-    <div className={`app ${darkMode ? 'dark-mode' : ''}`}>
+    <div className={`app ${darkMode ? "dark-mode" : ""}`}>
       <header className="header">
         <div className="header-content">
           <h1 className="header-title">💰 Expense Tracker</h1>
-          <button 
-            onClick={toggleDarkMode} 
+          <button
+            onClick={toggleDarkMode}
             className="dark-mode-toggle"
             aria-label="Toggle dark mode"
           >
-            {darkMode ? '☀️' : '🌙'}
+            {darkMode ? "☀️" : "🌙"}
           </button>
         </div>
       </header>
 
       <nav className="nav-tabs">
-        <button 
-          className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`}
-          onClick={() => setActiveTab('dashboard')}
+        <button
+          className={`tab-button ${activeTab === "dashboard" ? "active" : ""}`}
+          onClick={() => setActiveTab("dashboard")}
         >
           🏠 Dashboard
         </button>
-        <button 
-          className={`tab-button ${activeTab === 'budget' ? 'active' : ''}`}
-          onClick={() => setActiveTab('budget')}
+        <button
+          className={`tab-button ${activeTab === "budget" ? "active" : ""}`}
+          onClick={() => setActiveTab("budget")}
         >
           🎯 Budget Goals
         </button>
-        <button 
-          className={`tab-button ${activeTab === 'analytics' ? 'active' : ''}`}
-          onClick={() => setActiveTab('analytics')}
+        <button
+          className={`tab-button ${activeTab === "analytics" ? "active" : ""}`}
+          onClick={() => setActiveTab("analytics")}
         >
           📊 Analytics
         </button>
@@ -807,7 +820,7 @@ function App() {
         <div className="tab-content">
           {activeTab === "dashboard" && renderDashboardContent()}
           {activeTab === "budget" && <BudgetGoals />}
-          {activeTab === "analytics" && <Analytics expenses={expenses} credits={credits} />}
+          {activeTab === "analytics" && <Analytics />}
         </div>
       </main>
     </div>
