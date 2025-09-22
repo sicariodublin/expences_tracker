@@ -441,6 +441,32 @@ h3 {
   padding-top: 60px;
 }
 
+/* Template Notification */
+.template-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: var(--success-color, #10b981);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  font-weight: 500;
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
 @keyframes modalSlideIn {
   from {
     opacity: 0;

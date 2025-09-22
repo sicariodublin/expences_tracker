@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Analytics from "./Analytics";
 import "./App.css";
 import BudgetGoals from "./BudgetGoals";
+import ExpenseTemplates from './ExpenseTemplates';
+import SpendingTrends from './SpendingTrends';
 
 function App() {
   // Dark Mode State
@@ -206,6 +208,31 @@ function App() {
       setCategory("");
     } catch (err) {
       console.error("Error adding expense:", err);
+    }
+  };
+
+  // Template-based expense addition
+  const addExpenseFromTemplate = async (templateData) => {
+    try {
+      setLoading(true);
+      await axios.post("http://localhost:5000/api/expenses", templateData);
+      fetchExpenses();
+      setShowExpenses(true);
+      
+      // Show success notification
+      const notification = document.createElement('div');
+      notification.className = 'template-notification';
+      notification.textContent = `✅ Added ${templateData.name} (€${templateData.amount})`;
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        notification.remove();
+      }, 3000);
+    } catch (err) {
+      console.error("Error adding expense from template:", err);
+      alert("Error adding expense. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -645,6 +672,46 @@ function App() {
         </div>
       </div>
 
+      {/* Expense Templates - Add this before the existing Add Expense Form */}
+      <ExpenseTemplates 
+        onAddExpense={addExpenseFromTemplate}
+        categories={categories}
+      />
+      
+      {/* Summary Cards */}
+      {/* <div className="summary-grid">
+        <div className="summary-card expenses">
+          <div className="summary-icon">💸</div>
+          <div className="summary-content">
+            <h3>Total Expenses</h3>
+            <p className="summary-amount">€{total.toFixed(2)}</p>
+          </div>
+        </div>
+        <div className="summary-card income">
+          <div className="summary-icon">💰</div>
+          <div className="summary-content">
+            <h3>Total Income</h3>
+            <p className="summary-amount">
+              €
+              {filteredCredits
+                .reduce((sum, cred) => sum + parseFloat(cred.amount), 0)
+                .toFixed(2)}
+            </p>
+          </div>
+        </div>
+        <div
+          className={`summary-card balance ${
+            balance >= 0 ? "positive" : "negative"
+          }`}
+        >
+          <div className="summary-icon">{balance >= 0 ? "📈" : "📉"}</div>
+          <div className="summary-content">
+            <h3>Balance</h3>
+            <p className="summary-amount">€{balance.toFixed(2)}</p>
+          </div>
+        </div>
+      </div> */}
+
       {/* Expenses Table */}
       {showExpenses && (
         <div className="table-container">
@@ -821,6 +888,7 @@ function App() {
           {activeTab === "dashboard" && renderDashboardContent()}
           {activeTab === "budget" && <BudgetGoals />}
           {activeTab === "analytics" && <Analytics />}
+          {activeTab === "analytics" && <SpendingTrends />}
         </div>
       </main>
     </div>
@@ -828,3 +896,6 @@ function App() {
 }
 
 export default App;
+
+
+  

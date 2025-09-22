@@ -16,7 +16,77 @@ const Analytics = () => {
   );
   const [viewType, setViewType] = useState("monthly"); // monthly, yearly, category
   const [chartType, setChartType] = useState("bar"); // bar, line, doughnut
+  const [selectedCategory, setSelectedCategory] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const categories = [
+    "Carro",
+    "Credit",
+    "Eating Out",
+    "Education",
+    "Entertainment",
+    "Family",
+    "Fees",
+    "Freelance",
+    "Gifts",
+    "Groceries",
+    "Gym",
+    "Healthcare",
+    "Holidays",
+    "Insurance",
+    "Investment",
+    "Licenses",
+    "Loan/Credit Card",
+    "Others",
+    "Refunds",
+    "Salary",
+    "Self-Care",
+    "Shopping",
+    "Transport",
+    "Utilities",
+  ];
+
+   const getFilteredExpenses = useCallback(() => {
+    let filtered = expenses;
+
+    if (selectedCategory) {
+      filtered = filtered.filter(exp => exp.category === selectedCategory);
+    }
+    if (viewType === "monthly" && selectedMonth) {
+      filtered = filtered.filter(exp => {
+        const expenseMonth = exp.date.split('-')[1];
+        const expenseYear = exp.date.split('-')[0];
+        return expenseMonth === selectedMonth.padStart(2, '0') && expenseYear === selectedYear;
+      });
+    } else if (viewType === "yearly") {
+      filtered = filtered.filter(exp => {
+        const expenseYear = exp.date.split('-')[0];
+        return expenseYear === selectedYear;
+      });
+    }
+    return filtered;
+  }, [expenses, viewType, selectedMonth, selectedYear, selectedCategory]);
+
+  const getFilteredCredits = useCallback(() => {
+    let filtered = credits;
+
+    if (selectedCategory) {
+      filtered = filtered.filter(cred => cred.category === selectedCategory);
+    }
+    if (viewType === "monthly" && selectedMonth) {
+      filtered = filtered.filter(cred => {
+        const creditMonth = cred.date.split('-')[1];
+        const creditYear = cred.date.split('-')[0];
+        return creditMonth === selectedMonth.padStart(2, '0') && creditYear === selectedYear;
+      });
+    } else if (viewType === "yearly") {
+      filtered = filtered.filter(cred => {
+        const creditYear = cred.date.split('-')[0];
+        return creditYear === selectedYear;
+      });
+    }
+    return filtered;
+  }, [credits, viewType, selectedMonth, selectedYear, selectedCategory]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -33,6 +103,14 @@ const Analytics = () => {
         )}-${lastDay}`;
       } else if (viewType === "yearly") {
         // Fetch data for entire year
+        startDate = `${selectedYear}-01-01`;
+        endDate = `${selectedYear}-12-31`;
+      } else if (viewType === "category") {
+        // Fetch data for selected category
+        startDate = `${selectedYear}-01-01`;
+        endDate = `${selectedYear}-12-31`;
+       } else if (viewType === "monthly") {
+        // Fetch data for selected month
         startDate = `${selectedYear}-01-01`;
         endDate = `${selectedYear}-12-31`;
       }
@@ -59,6 +137,9 @@ const Analytics = () => {
   }, [fetchData]);
 
   const getMonthlyData = useCallback(() => {
+    const filteredExpenses = getFilteredExpenses();
+    const filteredCredits = getFilteredCredits();
+
     if (selectedMonth) {
       // Show daily data for selected month
       const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
@@ -69,12 +150,12 @@ const Analytics = () => {
       const dailyExpenses = {};
       const dailyCredits = {};
 
-      expenses.forEach((exp) => {
+      filteredExpenses.forEach((exp) => {
         const day = exp.date.split("-")[2];
         dailyExpenses[day] = (dailyExpenses[day] || 0) + parseFloat(exp.amount);
       });
 
-      credits.forEach((cred) => {
+      filteredCredits.forEach((cred) => {
         const day = cred.date.split("-")[2];
         dailyCredits[day] = (dailyCredits[day] || 0) + parseFloat(cred.amount);
       });
@@ -100,45 +181,25 @@ const Analytics = () => {
       };
     } else {
       // Show monthly overview for the year
-      const months = [
-        "01",
-        "02",
-        "03",
-        "04",
-        "05",
-        "06",
-        "07",
-        "08",
-        "09",
-        "10",
-        "11",
-        "12",
-      ];
-      const monthNames = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ];
+    const months = [
+      "01", "02", "03", "04", "05", "06",
+      "07", "08", "09", "10", "11", "12",
+    ];
+    const monthNames = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
 
       const monthlyExpenses = {};
       const monthlyCredits = {};
 
-      expenses.forEach((exp) => {
+      filteredExpenses.forEach((exp) => {
         const month = exp.date.split("-")[1];
         monthlyExpenses[month] =
           (monthlyExpenses[month] || 0) + parseFloat(exp.amount);
       });
 
-      credits.forEach((cred) => {
+      filteredCredits.forEach((cred) => {
         const month = cred.date.split("-")[1];
         monthlyCredits[month] =
           (monthlyCredits[month] || 0) + parseFloat(cred.amount);
@@ -164,9 +225,12 @@ const Analytics = () => {
         ],
       };
     }
-  }, [expenses, credits, selectedMonth, selectedYear]);
+  }, [getFilteredExpenses, getFilteredCredits, selectedMonth, selectedYear]);
 
   const getYearlyData = useCallback(() => {
+    const filteredExpenses = getFilteredExpenses();
+    const filteredCredits = getFilteredCredits();
+
     const currentYear = parseInt(selectedYear);
     const years = [currentYear - 2, currentYear - 1, currentYear].map((y) =>
       y.toString()
@@ -175,13 +239,13 @@ const Analytics = () => {
     const yearlyExpenses = {};
     const yearlyCredits = {};
 
-    expenses.forEach((exp) => {
+    filteredExpenses.forEach((exp) => {
       const year = exp.date.split("-")[0];
       yearlyExpenses[year] =
         (yearlyExpenses[year] || 0) + parseFloat(exp.amount);
     });
 
-    credits.forEach((cred) => {
+    filteredCredits.forEach((cred) => {
       const year = cred.date.split("-")[0];
       yearlyCredits[year] =
         (yearlyCredits[year] || 0) + parseFloat(cred.amount);
@@ -206,18 +270,21 @@ const Analytics = () => {
         },
       ],
     };
-  }, [expenses, credits, selectedYear]);
+  }, [getFilteredExpenses, getFilteredCredits, selectedYear]);
 
   const getCategoryData = useCallback(() => {
+    const filteredExpenses = getFilteredExpenses();
+    const filteredCredits = getFilteredCredits();
+
     const categoryExpenses = {};
     const categoryCredits = {};
 
-    expenses.forEach((exp) => {
+    filteredExpenses.forEach((exp) => {
       categoryExpenses[exp.category] =
         (categoryExpenses[exp.category] || 0) + parseFloat(exp.amount);
     });
 
-    credits.forEach((cred) => {
+    filteredCredits.forEach((cred) => {
       categoryCredits[cred.category] =
         (categoryCredits[cred.category] || 0) + parseFloat(cred.amount);
     });
@@ -252,23 +319,25 @@ const Analytics = () => {
         },
       ],
     };
-  }, [expenses, credits]);
+  }, [getFilteredExpenses, getFilteredCredits]);
 
   const getChartTitle = useCallback(() => {
+    const categoryText = selectedCategory ? ` - ${selectedCategory}` : "";
+    
     if (viewType === "monthly" && selectedMonth) {
       const monthName = new Date(
         selectedYear,
         selectedMonth - 1
       ).toLocaleDateString("en-US", { month: "long" });
-      return `Daily ${monthName} ${selectedYear} - Expenses vs Credits`;
+      return `Daily ${monthName} ${selectedYear}${categoryText} - Expenses vs Credits`;
     } else if (viewType === "monthly") {
-      return `Monthly ${selectedYear} - Expenses vs Credits`;
+      return `Monthly ${selectedYear}${categoryText} - Expenses vs Credits`;
     } else if (viewType === "yearly") {
-      return `Yearly Comparison - Expenses vs Credits`;
+      return `Yearly Comparison${categoryText} - Expenses vs Credits`;
     } else {
-      return `Category Breakdown - Expenses`;
+      return `Category Breakdown${categoryText} - Expenses`;
     }
-  }, [viewType, selectedMonth, selectedYear]);
+  }, [viewType, selectedMonth, selectedYear, selectedCategory]);
 
   const chartData = useMemo(() => {
     if (viewType === "monthly") {
@@ -277,7 +346,7 @@ const Analytics = () => {
       return getYearlyData();
     } else {
       return getCategoryData();
-    }
+    } 
   }, [viewType, getMonthlyData, getYearlyData, getCategoryData]);
 
   const chartOptions = useMemo(
@@ -370,37 +439,6 @@ const Analytics = () => {
     }
   };
 
-  const getFilteredExpenses = useCallback(() => {
-    if (viewType === "monthly" && selectedMonth) {
-      return expenses.filter(exp => {
-        const expenseMonth = exp.date.split('-')[1];
-        const expenseYear = exp.date.split('-')[0];
-        return expenseMonth === selectedMonth.padStart(2, '0') && expenseYear === selectedYear;
-      });
-    } else if (viewType === "yearly") {
-      return expenses.filter(exp => {
-        const expenseYear = exp.date.split('-')[0];
-        return expenseYear === selectedYear;
-      });
-    }
-    return expenses;
-  }, [expenses, viewType, selectedMonth, selectedYear]);
-
-  const getFilteredCredits = useCallback(() => {
-    if (viewType === "monthly" && selectedMonth) {
-      return credits.filter(cred => {
-        const creditMonth = cred.date.split('-')[1];
-        const creditYear = cred.date.split('-')[0];
-        return creditMonth === selectedMonth.padStart(2, '0') && creditYear === selectedYear;
-      });
-    } else if (viewType === "yearly") {
-      return credits.filter(cred => {
-        const creditYear = cred.date.split('-')[0];
-        return creditYear === selectedYear;
-      });
-    }
-    return credits;
-  }, [credits, viewType, selectedMonth, selectedYear]);
 
   const getTotalExpenses = useCallback(() => {
     return getFilteredExpenses().reduce((total, exp) => total + parseFloat(exp.amount), 0);
@@ -430,6 +468,22 @@ const Analytics = () => {
               <option value="monthly">Monthly</option>
               <option value="yearly">Yearly</option>
               <option value="category">By Category</option>
+            </select>
+          </div>
+
+          <div className="control-group">
+            <label className="form-label">Category:</label>
+            <select
+              className="form-input"
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+            >
+              <option value="">All Categories</option>
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
             </select>
           </div>
 
