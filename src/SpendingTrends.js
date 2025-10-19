@@ -10,6 +10,7 @@ const SpendingTrends = () => {
   const [chartType, setChartType] = useState('line'); // line, bar
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(false);
+  const [categoryRotationIndex, setCategoryRotationIndex] = useState(0);
 
   // Fetch data
   const fetchData = useCallback(async () => {
@@ -31,6 +32,43 @@ const SpendingTrends = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const getCategoryTotals = useCallback(() => {
+    const now = new Date();
+    const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const targetMonth = previousMonth.getMonth();
+    const targetYear = previousMonth.getFullYear();
+    
+    const categoryTotals = {};
+
+     // Process expenses for current month
+    expenses.forEach((exp) => {
+      const expDate = new Date(exp.date);
+      if (expDate.getMonth() === targetMonth && expDate.getFullYear() === targetYear) {
+        categoryTotals[exp.category] = Math.round((categoryTotals[exp.category] || 0) + parseFloat(exp.amount) * 100) / 100;
+      }
+    });
+    
+    // Sort by amount and return as array
+    return Object.entries(categoryTotals)
+      .sort(([,a], [,b]) => b - a)
+      .map(([category, amount]) => ({ category, amount }));
+  }, [expenses,]);
+
+  // Add rotation effect for categories
+  useEffect(() => {
+    const categoryTotals = getCategoryTotals();
+    if (categoryTotals.length > 0) {
+      const interval = setInterval(() => {
+        setCategoryRotationIndex(prev => {
+          const nextIndex = prev + 1;
+          return nextIndex >= categoryTotals.length ? 0 : nextIndex;
+        } );
+      }, 2500); // Rotate every 3 seconds
+      
+      return () => clearInterval(interval);
+    }
+  }, [getCategoryTotals]);
 
   // Monthly trends data
   const getMonthlyTrendsData = useCallback(() => {
@@ -54,9 +92,9 @@ const SpendingTrends = () => {
       const expMonth = expDate.getMonth() + 1;
       
       if (expYear === currentYear) {
-        currentYearExpenses[expMonth] = (currentYearExpenses[expMonth] || 0) + parseFloat(exp.amount);
+        currentYearExpenses[expMonth] = Math.round((currentYearExpenses[expMonth] || 0) + parseFloat(exp.amount) * 100) / 100;
       } else if (expYear === previousYear) {
-        previousYearExpenses[expMonth] = (previousYearExpenses[expMonth] || 0) + parseFloat(exp.amount);
+        previousYearExpenses[expMonth] = Math.round((previousYearExpenses[expMonth] || 0) + parseFloat(exp.amount) * 100) / 100;
       }
     });
     
@@ -67,9 +105,9 @@ const SpendingTrends = () => {
       const credMonth = credDate.getMonth() + 1;
       
       if (credYear === currentYear) {
-        currentYearCredits[credMonth] = (currentYearCredits[credMonth] || 0) + parseFloat(cred.amount);
+        currentYearCredits[credMonth] = Math.round((currentYearCredits[credMonth] || 0) + parseFloat(cred.amount) * 100) / 100;
       } else if (credYear === previousYear) {
-        previousYearCredits[credMonth] = (previousYearCredits[credMonth] || 0) + parseFloat(cred.amount);
+        previousYearCredits[credMonth] = Math.round((previousYearCredits[credMonth] || 0) + parseFloat(cred.amount) * 100) / 100;
       }
     });
     
@@ -126,21 +164,21 @@ const SpendingTrends = () => {
     expenses.forEach(exp => {
       const expYear = new Date(exp.date).getFullYear();
       if (years.includes(expYear)) {
-        yearlyExpenses[expYear] = (yearlyExpenses[expYear] || 0) + parseFloat(exp.amount);
+        yearlyExpenses[expYear] = Math.round((yearlyExpenses[expYear] || 0) + parseFloat(exp.amount) * 100) / 100;
       }
     });
     
     credits.forEach(cred => {
       const credYear = new Date(cred.date).getFullYear();
       if (years.includes(credYear)) {
-        yearlyCredits[credYear] = (yearlyCredits[credYear] || 0) + parseFloat(cred.amount);
+        yearlyCredits[credYear] = Math.round((yearlyCredits[credYear] || 0) + parseFloat(cred.amount) * 100) / 100;
       }
     });
     
     years.forEach(year => {
       const expenses = yearlyExpenses[year] || 0;
       const income = yearlyCredits[year] || 0;
-      yearlyBalance[year] = income - expenses;
+      yearlyBalance[year] = Math.round((income - expenses) * 100) / 100;
     });
     
     return {
@@ -242,7 +280,7 @@ const SpendingTrends = () => {
         beginAtZero: true,
         ticks: {
           callback: function(value) {
-            return '€' + value.toLocaleString();
+            return '€' + value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
           }
         }
       }
@@ -361,6 +399,7 @@ const SpendingTrends = () => {
       </div>
 
       {/* Insights */}
+      <div className='insights-container'>
       <div className="trends-insights">
         <h3>💡 Key Insights</h3>
         <div className="insights-grid">
@@ -391,7 +430,56 @@ const SpendingTrends = () => {
             </span>
           </div>
         </div>
-      </div>
+        </div>
+        <div className="category-showcase">
+                <div className="category-card">
+                  <div className="category-icon">
+                    {getCategoryTotals()[categoryRotationIndex]?.category === 'Food' && '🍽️'}
+                    {getCategoryTotals()[categoryRotationIndex]?.category === 'Transport' && '🚗'}
+                    {getCategoryTotals()[categoryRotationIndex]?.category === 'Entertainment' && '🎬'}
+                    {getCategoryTotals()[categoryRotationIndex]?.category === 'Shopping' && '🛒'}
+                    {getCategoryTotals()[categoryRotationIndex]?.category === 'Bills' && '📄'}
+                    {getCategoryTotals()[categoryRotationIndex]?.category === 'Health' && '🏥'}
+                    {!['Food', 'Transport', 'Entertainment', 'Shopping', 'Bills', 'Health'].includes(getCategoryTotals()[categoryRotationIndex]?.category) && '💰'}
+                  </div>
+                  <div className="category-details">
+                    <h4>{getCategoryTotals()[categoryRotationIndex]?.category}</h4>
+                    <div className="category-amount-large">€{getCategoryTotals()[categoryRotationIndex]?.amount.toFixed(2)}</div>
+                    <div className="category-rank">#{categoryRotationIndex + 1} highest expense</div>
+                  </div>
+                </div>
+                
+                <div className="carousel-indicators">
+                  {getCategoryTotals().map((_, index) => (
+                    <div 
+                      key={index}
+                      className={`indicator ${index === categoryRotationIndex ? 'active' : ''}`}
+                      onClick={() => setCategoryRotationIndex(index)}
+                    ></div>
+                  ))}
+                </div>
+                
+                <div className="carousel-navigation">
+                  <button 
+                    className="nav-btn prev" 
+                    onClick={() => setCategoryRotationIndex(prev => 
+                      prev === 0 ? getCategoryTotals().length - 1 : prev - 1
+                    )}
+                  >
+                    ‹
+                  </button>
+                  <button 
+                    className="nav-btn next" 
+                    onClick={() => setCategoryRotationIndex(prev => 
+                      prev === getCategoryTotals().length - 1 ? 0 : prev + 1
+                    )}
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+            )
+          </div>
     </div>
   );
 };

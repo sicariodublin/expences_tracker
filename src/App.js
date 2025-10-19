@@ -138,13 +138,13 @@ function App() {
           // Sum amounts for each expense category
           filteredExpenses.forEach((exp) => {
             categoryTotals[exp.category] =
-              (categoryTotals[exp.category] || 0) + parseFloat(exp.amount);
+              Math.round((categoryTotals[exp.category] || 0) + parseFloat(exp.amount) * 100) / 100;
           });
 
           // Sum amounts for each credit category
           filteredCredits.forEach((cred) => {
             categoryTotals[cred.category] =
-              (categoryTotals[cred.category] || 0) + parseFloat(cred.amount);
+              Math.round((categoryTotals[cred.category] || 0) + parseFloat(cred.amount) * 100) / 100;
           });
 
           new Chart(ctx, {
