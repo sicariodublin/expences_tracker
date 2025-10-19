@@ -1,130 +1,95 @@
-import axios from "axios";
 import Chart from "chart.js/auto";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bar, Doughnut, Line } from "react-chartjs-2";
 import "./Analytics.css";
+import apiClient from "./api/apiClient";
+import { EXPENSE_CATEGORIES } from "./constants/categories";
+import { formatCurrency, formatPercentage } from "./utils/format";
 
 Chart.register(ChartDataLabels);
 
+const MONTH_NAMES = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+const getDateParts = (value) => {
+  const date = new Date(value);
+  const year = date.getFullYear().toString();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return { year, month, day };
+};
+
+const sumBy = (items, selector) =>
+  items.reduce((total, item) => total + (selector(item) || 0), 0);
+
 const Analytics = () => {
+  const today = new Date();
+  const [chartType, setChartType] = useState("bar");
+  const [viewType, setViewType] = useState("monthly");
+  const [selectedMonth, setSelectedMonth] = useState(
+    String(today.getMonth() + 1).padStart(2, "0")
+  );
+  const [selectedYear, setSelectedYear] = useState(
+    today.getFullYear().toString()
+  );
+  const [selectedCategory, setSelectedCategory] = useState("");
   const [expenses, setExpenses] = useState([]);
   const [credits, setCredits] = useState([]);
-  const [selectedMonth, setSelectedMonth] = useState("");
-  const [selectedYear, setSelectedYear] = useState(
-    new Date().getFullYear().toString()
-  );
-  const [viewType, setViewType] = useState("monthly"); // monthly, yearly, category
-  const [chartType, setChartType] = useState("bar"); // bar, line, doughnut
-  const [selectedCategory, setSelectedCategory] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const categories = [
-    "Carro",
-    "Credit",
-    "Eating Out",
-    "Education",
-    "Entertainment",
-    "Family",
-    "Fees",
-    "Freelance",
-    "Gifts",
-    "Groceries",
-    "Gym",
-    "Healthcare",
-    "Holidays",
-    "Insurance",
-    "Investment",
-    "Licenses",
-    "Loan/Credit Card",
-    "Others",
-    "Refunds",
-    "Salary",
-    "Self-Care",
-    "Shopping",
-    "Transport",
-    "Utilities",
-  ];
-
-   const getFilteredExpenses = useCallback(() => {
-    let filtered = expenses;
-
-    if (selectedCategory) {
-      filtered = filtered.filter(exp => exp.category === selectedCategory);
-    }
-    if (viewType === "monthly" && selectedMonth) {
-      filtered = filtered.filter(exp => {
-        const expenseMonth = exp.date.split('-')[1];
-        const expenseYear = exp.date.split('-')[0];
-        return expenseMonth === selectedMonth.padStart(2, '0') && expenseYear === selectedYear;
-      });
-    } else if (viewType === "yearly") {
-      filtered = filtered.filter(exp => {
-        const expenseYear = exp.date.split('-')[0];
-        return expenseYear === selectedYear;
-      });
-    }
-    return filtered;
-  }, [expenses, viewType, selectedMonth, selectedYear, selectedCategory]);
-
-  const getFilteredCredits = useCallback(() => {
-    let filtered = credits;
-
-    if (selectedCategory) {
-      filtered = filtered.filter(cred => cred.category === selectedCategory);
-    }
-    if (viewType === "monthly" && selectedMonth) {
-      filtered = filtered.filter(cred => {
-        const creditMonth = cred.date.split('-')[1];
-        const creditYear = cred.date.split('-')[0];
-        return creditMonth === selectedMonth.padStart(2, '0') && creditYear === selectedYear;
-      });
-    } else if (viewType === "yearly") {
-      filtered = filtered.filter(cred => {
-        const creditYear = cred.date.split('-')[0];
-        return creditYear === selectedYear;
-      });
-    }
-    return filtered;
-  }, [credits, viewType, selectedMonth, selectedYear, selectedCategory]);
+  const categories = EXPENSE_CATEGORIES;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      let startDate, endDate;
+      let start;
+      let end;
 
-      if (viewType === "monthly" && selectedMonth) {
-        // Fetch data for specific month
-        startDate = `${selectedYear}-${selectedMonth.padStart(2, "0")}-01`;
-        const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
-        endDate = `${selectedYear}-${selectedMonth.padStart(
+      if (viewType === "monthly") {
+        const monthIndex = Number(selectedMonth) - 1;
+        const lastDay = new Date(
+          Number(selectedYear),
+          monthIndex + 1,
+          0
+        ).getDate();
+        start = `${selectedYear}-${selectedMonth}-01`;
+        end = `${selectedYear}-${selectedMonth}-${String(lastDay).padStart(
           2,
           "0"
-        )}-${lastDay}`;
-      } else if (viewType === "yearly") {
-        // Fetch data for entire year
-        startDate = `${selectedYear}-01-01`;
-        endDate = `${selectedYear}-12-31`;
-      } else if (viewType === "category") {
-        // Fetch data for selected category
-        startDate = `${selectedYear}-01-01`;
-        endDate = `${selectedYear}-12-31`;
-       } else if (viewType === "monthly") {
-        // Fetch data for selected month
-        startDate = `${selectedYear}-01-01`;
-        endDate = `${selectedYear}-12-31`;
+        )}`;
+      } else {
+        start = `${selectedYear}-01-01`;
+        end = `${selectedYear}-12-31`;
       }
 
       const params =
-        startDate && endDate ? { start: startDate, end: endDate } : {};
+        start && end
+          ? {
+              start,
+              end,
+            }
+          : {};
 
-      const [expensesRes, creditsRes] = await Promise.all([
-        axios.get("http://localhost:5000/api/expenses", { params }),
-        axios.get("http://localhost:5000/api/credits", { params }),
+      const [expenseRes, creditRes] = await Promise.all([
+        apiClient.get("/expenses", { params }),
+        apiClient.get("/credits", { params }),
       ]);
 
-      setExpenses(expensesRes.data);
-      setCredits(creditsRes.data);
+      setExpenses(expenseRes.data);
+      setCredits(creditRes.data);
     } catch (error) {
       console.error("Error fetching analytics data:", error);
     } finally {
@@ -136,275 +101,359 @@ const Analytics = () => {
     fetchData();
   }, [fetchData]);
 
-  const getMonthlyData = useCallback(() => {
-    const filteredExpenses = getFilteredExpenses();
-    const filteredCredits = getFilteredCredits();
+  const filteredExpenses = useMemo(() => {
+    return expenses.filter((exp) => {
+      const amount = parseFloat(exp.amount);
+      if (!amount) {
+        return false;
+      }
+      const { year, month } = getDateParts(exp.date);
+      if (year !== selectedYear) {
+        return false;
+      }
+      if (viewType === "monthly" && month !== selectedMonth) {
+        return false;
+      }
+      if (selectedCategory && exp.category !== selectedCategory) {
+        return false;
+      }
+      return true;
+    });
+  }, [expenses, selectedCategory, selectedMonth, selectedYear, viewType]);
 
-    if (selectedMonth) {
-      // Show daily data for selected month
-      const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
-      const days = Array.from({ length: daysInMonth }, (_, i) =>
-        (i + 1).toString().padStart(2, "0")
+  const filteredCredits = useMemo(() => {
+    return credits.filter((credit) => {
+      const amount = parseFloat(credit.amount);
+      if (!amount) {
+        return false;
+      }
+      const { year, month } = getDateParts(credit.date);
+      if (year !== selectedYear) {
+        return false;
+      }
+      if (viewType === "monthly" && month !== selectedMonth) {
+        return false;
+      }
+      if (selectedCategory && credit.category !== selectedCategory) {
+        return false;
+      }
+      return true;
+    });
+  }, [credits, selectedCategory, selectedMonth, selectedYear, viewType]);
+
+  const totalExpenses = useMemo(
+    () => sumBy(filteredExpenses, (exp) => parseFloat(exp.amount)),
+    [filteredExpenses]
+  );
+
+  const totalIncome = useMemo(
+    () => sumBy(filteredCredits, (credit) => parseFloat(credit.amount)),
+    [filteredCredits]
+  );
+
+  const netAmount = useMemo(
+    () => totalIncome - totalExpenses,
+    [totalExpenses, totalIncome]
+  );
+
+  const categoryBreakdown = useMemo(() => {
+    const breakdown = categories.map((category) => {
+      const categoryExpenses = sumBy(
+        filteredExpenses.filter((exp) => exp.category === category),
+        (exp) => parseFloat(exp.amount)
       );
-
-      const dailyExpenses = {};
-      const dailyCredits = {};
-
-      filteredExpenses.forEach((exp) => {
-        const day = exp.date.split("-")[2];
-        dailyExpenses[day] = (dailyExpenses[day] || 0) + parseFloat(exp.amount);
-      });
-
-      filteredCredits.forEach((cred) => {
-        const day = cred.date.split("-")[2];
-        dailyCredits[day] = (dailyCredits[day] || 0) + parseFloat(cred.amount);
-      });
-
+      const categoryCredits = sumBy(
+        filteredCredits.filter((credit) => credit.category === category),
+        (credit) => parseFloat(credit.amount)
+      );
       return {
-        labels: days,
-        datasets: [
-          {
-            label: "Expenses",
-            data: days.map((day) => dailyExpenses[day] || 0),
-            backgroundColor: "rgba(255, 99, 132, 0.6)",
-            borderColor: "rgba(255, 99, 132, 1)",
-            borderWidth: 2,
-          },
-          {
-            label: "Credits",
-            data: days.map((day) => dailyCredits[day] || 0),
-            backgroundColor: "rgba(54, 162, 235, 0.6)",
-            borderColor: "rgba(54, 162, 235, 1)",
-            borderWidth: 2,
-          },
-        ],
+        category,
+        expenses: categoryExpenses,
+        credits: categoryCredits,
+        net: categoryCredits - categoryExpenses,
       };
-    } else {
-      // Show monthly overview for the year
-    const months = [
-      "01", "02", "03", "04", "05", "06",
-      "07", "08", "09", "10", "11", "12",
-    ];
-    const monthNames = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-    ];
+    });
 
-      const monthlyExpenses = {};
-      const monthlyCredits = {};
-
-      filteredExpenses.forEach((exp) => {
-        const month = exp.date.split("-")[1];
-        monthlyExpenses[month] =
-          (monthlyExpenses[month] || 0) + parseFloat(exp.amount);
-      });
-
-      filteredCredits.forEach((cred) => {
-        const month = cred.date.split("-")[1];
-        monthlyCredits[month] =
-          (monthlyCredits[month] || 0) + parseFloat(cred.amount);
-      });
-
-      return {
-        labels: monthNames,
-        datasets: [
-          {
-            label: "Expenses",
-            data: months.map((month) => monthlyExpenses[month] || 0),
-            backgroundColor: "rgba(255, 99, 132, 0.6)",
-            borderColor: "rgba(255, 99, 132, 1)",
-            borderWidth: 2,
-          },
-          {
-            label: "Credits",
-            data: months.map((month) => monthlyCredits[month] || 0),
-            backgroundColor: "rgba(54, 162, 235, 0.6)",
-            borderColor: "rgba(54, 162, 235, 1)",
-            borderWidth: 2,
-          },
-        ],
-      };
-    }
-  }, [getFilteredExpenses, getFilteredCredits, selectedMonth, selectedYear]);
-
-  const getYearlyData = useCallback(() => {
-    const filteredExpenses = getFilteredExpenses();
-    const filteredCredits = getFilteredCredits();
-
-    const currentYear = parseInt(selectedYear);
-    const years = [currentYear - 2, currentYear - 1, currentYear].map((y) =>
-      y.toString()
+    return breakdown.filter(
+      (item) => item.expenses > 0 || item.credits > 0
     );
+  }, [categories, filteredCredits, filteredExpenses]);
 
-    const yearlyExpenses = {};
-    const yearlyCredits = {};
-
-    filteredExpenses.forEach((exp) => {
-      const year = exp.date.split("-")[0];
-      yearlyExpenses[year] =
-        (yearlyExpenses[year] || 0) + parseFloat(exp.amount);
-    });
-
-    filteredCredits.forEach((cred) => {
-      const year = cred.date.split("-")[0];
-      yearlyCredits[year] =
-        (yearlyCredits[year] || 0) + parseFloat(cred.amount);
-    });
-
-    return {
-      labels: years,
-      datasets: [
-        {
-          label: "Expenses",
-          data: years.map((year) => yearlyExpenses[year] || 0),
-          backgroundColor: "rgba(255, 99, 132, 0.6)",
-          borderColor: "rgba(255, 99, 132, 1)",
-          borderWidth: 2,
-        },
-        {
-          label: "Credits",
-          data: years.map((year) => yearlyCredits[year] || 0),
-          backgroundColor: "rgba(54, 162, 235, 0.6)",
-          borderColor: "rgba(54, 162, 235, 1)",
-          borderWidth: 2,
-        },
-      ],
-    };
-  }, [getFilteredExpenses, getFilteredCredits, selectedYear]);
-
-  const getCategoryData = useCallback(() => {
-    const filteredExpenses = getFilteredExpenses();
-    const filteredCredits = getFilteredCredits();
-
-    const categoryExpenses = {};
-    const categoryCredits = {};
-
-    filteredExpenses.forEach((exp) => {
-      categoryExpenses[exp.category] =
-        (categoryExpenses[exp.category] || 0) + parseFloat(exp.amount);
-    });
-
-    filteredCredits.forEach((cred) => {
-      categoryCredits[cred.category] =
-        (categoryCredits[cred.category] || 0) + parseFloat(cred.amount);
-    });
-
-    const allCategories = [
-      ...new Set([
-        ...Object.keys(categoryExpenses),
-        ...Object.keys(categoryCredits),
-      ]),
-    ];
-
-    const colors = [
-      "rgba(255, 99, 132, 0.6)",
-      "rgba(54, 162, 235, 0.6)",
-      "rgba(255, 205, 86, 0.6)",
-      "rgba(75, 192, 192, 0.6)",
-      "rgba(153, 102, 255, 0.6)",
-      "rgba(255, 159, 64, 0.6)",
-      "rgba(199, 199, 199, 0.6)",
-      "rgba(83, 102, 255, 0.6)",
-    ];
-
-    return {
-      labels: allCategories,
-      datasets: [
-        {
-          label: "Expenses",
-          data: allCategories.map((cat) => categoryExpenses[cat] || 0),
-          backgroundColor: colors,
-          borderColor: colors.map((color) => color.replace("0.6", "1")),
-          borderWidth: 2,
-        },
-      ],
-    };
-  }, [getFilteredExpenses, getFilteredCredits]);
-
-  const getChartTitle = useCallback(() => {
-    const categoryText = selectedCategory ? ` - ${selectedCategory}` : "";
-    
-    if (viewType === "monthly" && selectedMonth) {
-      const monthName = new Date(
-        selectedYear,
-        selectedMonth - 1
-      ).toLocaleDateString("en-US", { month: "long" });
-      return `Daily ${monthName} ${selectedYear}${categoryText} - Expenses vs Credits`;
-    } else if (viewType === "monthly") {
-      return `Monthly ${selectedYear}${categoryText} - Expenses vs Credits`;
-    } else if (viewType === "yearly") {
-      return `Yearly Comparison${categoryText} - Expenses vs Credits`;
-    } else {
-      return `Category Breakdown${categoryText} - Expenses`;
-    }
-  }, [viewType, selectedMonth, selectedYear, selectedCategory]);
+  const topExpenseCategories = useMemo(
+    () =>
+      [...categoryBreakdown]
+        .sort((a, b) => b.expenses - a.expenses)
+        .slice(0, 5),
+    [categoryBreakdown]
+  );
 
   const chartData = useMemo(() => {
+    if (loading) {
+      return { labels: [], datasets: [] };
+    }
+
     if (viewType === "monthly") {
-      return getMonthlyData();
-    } else if (viewType === "yearly") {
-      return getYearlyData();
-    } else {
-      return getCategoryData();
-    } 
-  }, [viewType, getMonthlyData, getYearlyData, getCategoryData]);
+      const daysInMonth = new Date(
+        Number(selectedYear),
+        Number(selectedMonth),
+        0
+      ).getDate();
+      const labels = Array.from({ length: daysInMonth }, (_, index) =>
+        String(index + 1)
+      );
+      const expensesByDay = Array(daysInMonth).fill(0);
+      const creditsByDay = Array(daysInMonth).fill(0);
+
+      filteredExpenses.forEach((exp) => {
+        const { month, day } = getDateParts(exp.date);
+        if (month !== selectedMonth) {
+          return;
+        }
+        const idx = Number(day) - 1;
+        expensesByDay[idx] += parseFloat(exp.amount) || 0;
+      });
+
+      filteredCredits.forEach((credit) => {
+        const { month, day } = getDateParts(credit.date);
+        if (month !== selectedMonth) {
+          return;
+        }
+        const idx = Number(day) - 1;
+        creditsByDay[idx] += parseFloat(credit.amount) || 0;
+      });
+
+      if (chartType === "doughnut") {
+        const expensesTotal = expensesByDay.reduce(
+          (acc, value) => acc + value,
+          0
+        );
+        const creditsTotal = creditsByDay.reduce(
+          (acc, value) => acc + value,
+          0
+        );
+        return {
+          labels: ["Expenses", "Income"],
+          datasets: [
+            {
+              data: [expensesTotal, creditsTotal],
+              backgroundColor: ["#ef4444", "#22c55e"],
+            },
+          ],
+        };
+      }
+
+      return {
+        labels,
+        datasets: [
+          {
+            label: "Expenses",
+            data: expensesByDay,
+            backgroundColor:
+              chartType === "bar" ? "rgba(239, 68, 68, 0.6)" : "rgba(239, 68, 68, 0.3)",
+            borderColor: "#ef4444",
+            borderWidth: 2,
+            tension: 0.4,
+            fill: chartType !== "line",
+          },
+          {
+            label: "Income",
+            data: creditsByDay,
+            backgroundColor:
+              chartType === "bar" ? "rgba(34, 197, 94, 0.6)" : "rgba(34, 197, 94, 0.3)",
+            borderColor: "#22c55e",
+            borderWidth: 2,
+            tension: 0.4,
+            fill: chartType !== "line",
+          },
+        ],
+      };
+    }
+
+    if (viewType === "yearly") {
+      const labels = MONTH_NAMES;
+      const expensesByMonth = Array(12).fill(0);
+      const creditsByMonth = Array(12).fill(0);
+
+      filteredExpenses.forEach((exp) => {
+        const { month } = getDateParts(exp.date);
+        const idx = Number(month) - 1;
+        expensesByMonth[idx] += parseFloat(exp.amount) || 0;
+      });
+
+      filteredCredits.forEach((credit) => {
+        const { month } = getDateParts(credit.date);
+        const idx = Number(month) - 1;
+        creditsByMonth[idx] += parseFloat(credit.amount) || 0;
+      });
+
+      if (chartType === "doughnut") {
+        return {
+          labels: ["Expenses", "Income"],
+          datasets: [
+            {
+              data: [
+                sumBy(expensesByMonth, (value) => value),
+                sumBy(creditsByMonth, (value) => value),
+              ],
+              backgroundColor: ["#ef4444", "#22c55e"],
+            },
+          ],
+        };
+      }
+
+      return {
+        labels,
+        datasets: [
+          {
+            label: "Expenses",
+            data: expensesByMonth,
+            backgroundColor:
+              chartType === "bar" ? "rgba(239, 68, 68, 0.6)" : "rgba(239, 68, 68, 0.3)",
+            borderColor: "#ef4444",
+            borderWidth: 2,
+            tension: 0.4,
+            fill: chartType !== "line",
+          },
+          {
+            label: "Income",
+            data: creditsByMonth,
+            backgroundColor:
+              chartType === "bar" ? "rgba(34, 197, 94, 0.6)" : "rgba(34, 197, 94, 0.3)",
+            borderColor: "#22c55e",
+            borderWidth: 2,
+            tension: 0.4,
+            fill: chartType !== "line",
+          },
+        ],
+      };
+    }
+
+    // category view
+    const labels = categoryBreakdown.map((item) => item.category);
+    const expenseTotals = categoryBreakdown.map((item) => item.expenses);
+    const creditTotals = categoryBreakdown.map((item) => item.credits);
+
+    if (chartType === "doughnut") {
+      return {
+        labels,
+        datasets: [
+          {
+            data: expenseTotals,
+            backgroundColor: [
+              "#2563eb",
+              "#10b981",
+              "#f59e0b",
+              "#ef4444",
+              "#8b5cf6",
+              "#06b6d4",
+              "#84cc16",
+              "#f97316",
+              "#ec4899",
+              "#6366f1",
+              "#14b8a6",
+              "#eab308",
+            ],
+          },
+        ],
+      };
+    }
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Expenses",
+          data: expenseTotals,
+          backgroundColor:
+            chartType === "bar" ? "rgba(239, 68, 68, 0.6)" : "rgba(239, 68, 68, 0.3)",
+          borderColor: "#ef4444",
+          borderWidth: 2,
+          tension: 0.4,
+          fill: chartType !== "line",
+        },
+        {
+          label: "Income",
+          data: creditTotals,
+          backgroundColor:
+            chartType === "bar" ? "rgba(34, 197, 94, 0.6)" : "rgba(34, 197, 94, 0.3)",
+          borderColor: "#22c55e",
+          borderWidth: 2,
+          tension: 0.4,
+          fill: chartType !== "line",
+        },
+      ],
+    };
+  }, [
+    categoryBreakdown,
+    chartType,
+    filteredCredits,
+    filteredExpenses,
+    loading,
+    selectedMonth,
+    selectedYear,
+    viewType,
+  ]);
 
   const chartOptions = useMemo(
     () => ({
       responsive: true,
+      maintainAspectRatio: false,
       interaction: {
-        mode: 'index',
+        mode: "index",
         intersect: false,
       },
       plugins: {
         legend: {
           position: "top",
-        },
-        title: {
-          display: true,
-          text: getChartTitle(),
+          labels: {
+            usePointStyle: true,
+          },
         },
         tooltip: {
-          enabled: true,
-          mode: 'index',
-          intersect: false,
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          titleColor: 'white',
-          bodyColor: 'white',
-          borderColor: 'rgba(255, 255, 255, 0.2)',
+          backgroundColor: "rgba(15, 23, 42, 0.9)",
+          borderColor: "rgba(255, 255, 255, 0.15)",
           borderWidth: 1,
           cornerRadius: 6,
-          displayColors: true,
+          titleColor: "#fff",
+          bodyColor: "#fff",
           callbacks: {
-            label: function(context) {
-              const label = context.dataset.label || '';
-              const value = context.parsed.y;
-              return `${label}: €${value.toFixed(2)}`;
+            label(context) {
+              const label = context.dataset.label || "";
+              const value = context.parsed?.y ?? context.parsed;
+              if (typeof value !== "number") {
+                return label;
+              }
+              return `${label}: ${formatCurrency(value)}`;
             },
-            title: function(tooltipItems) {
-              return tooltipItems[0].label;
-            }
-          }
+          },
         },
         datalabels: {
           display: chartType === "doughnut",
-          color: "white",
+          color: "#fff",
           font: {
             weight: "bold",
           },
           formatter: (value, context) => {
-            if (value === 0) return "";
-            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+            if (!value) {
+              return "";
+            }
+            const total = context.dataset.data.reduce(
+              (acc, item) => acc + item,
+              0
+            );
+            if (!total) {
+              return "";
+            }
             const percentage = ((value / total) * 100).toFixed(1);
             return `${percentage}%`;
           },
         },
       },
       scales:
-        chartType !== "doughnut"
-          ? {
+        chartType === "doughnut"
+          ? {}
+          : {
               x: {
-                display: true,
                 grid: {
                   display: false,
                 },
@@ -412,58 +461,51 @@ const Analytics = () => {
               y: {
                 beginAtZero: true,
                 grid: {
-                  color: 'rgba(0, 0, 0, 0.1)',
+                  color: "rgba(148, 163, 184, 0.2)",
                 },
                 ticks: {
-                  callback: function (value) {
-                    return "€" + value.toFixed(2);
-                  },
+                  callback: (value) => formatCurrency(value),
                 },
               },
-            }
-          : {},
+            },
     }),
-    [chartType, getChartTitle]
+    [chartType]
   );
 
-  const renderChart = () => {
-    const props = { data: chartData, options: chartOptions };
+  const chartProps = { data: chartData, options: chartOptions };
 
-    switch (chartType) {
-      case "line":
-        return <Line {...props} />;
-      case "doughnut":
-        return <Doughnut {...props} />;
-      default:
-        return <Bar {...props} />;
+  const ChartComponent = useMemo(() => {
+    if (chartType === "line") {
+      return Line;
     }
-  };
+    if (chartType === "doughnut") {
+      return Doughnut;
+    }
+    return Bar;
+  }, [chartType]);
 
-
-  const getTotalExpenses = useCallback(() => {
-    return getFilteredExpenses().reduce((total, exp) => total + parseFloat(exp.amount), 0);
-  }, [getFilteredExpenses]);
-
-  const getTotalCredits = useCallback(() => {
-    return getFilteredCredits().reduce((total, cred) => total + parseFloat(cred.amount), 0);
-  }, [getFilteredCredits]);
-
-  const getNetAmount = useCallback(() => {
-    return getTotalCredits() - getTotalExpenses();
-  }, [getTotalCredits, getTotalExpenses]);
+  const activeDataset =
+    chartData.datasets && chartData.datasets.length > 0
+      ? chartData.datasets[0].data?.reduce?.(
+          (total, value) => total + value,
+          0
+        ) ?? 0
+      : 0;
 
   return (
-    <div className="analytics-container">
-      <div className="analytics-header">
-        <h2>📊 Analytics</h2>
-
+    <section className="analytics-container">
+      <header className="analytics-header">
+        <h2>Analytics</h2>
         <div className="analytics-controls">
           <div className="control-group">
-            <label className="form-label">View:</label>
+            <label className="form-label" htmlFor="analytics-view">
+              View
+            </label>
             <select
+              id="analytics-view"
               className="form-input"
               value={viewType}
-              onChange={(e) => setViewType(e.target.value)}
+              onChange={(event) => setViewType(event.target.value)}
             >
               <option value="monthly">Monthly</option>
               <option value="yearly">Yearly</option>
@@ -472,119 +514,184 @@ const Analytics = () => {
           </div>
 
           <div className="control-group">
-            <label className="form-label">Category:</label>
+            <label className="form-label" htmlFor="analytics-chart">
+              Chart
+            </label>
             <select
-              className="form-input"
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-            >
-              <option value="">All Categories</option>
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="control-group">
-            <label className="form-label">Chart Type:</label>
-            <select
+              id="analytics-chart"
               className="form-input"
               value={chartType}
-              onChange={(e) => setChartType(e.target.value)}
+              onChange={(event) => setChartType(event.target.value)}
             >
-              <option value="bar">Bar Chart</option>
-              <option value="line">Line Chart</option>
-              {viewType === "category" && (
-                <option value="doughnut">Doughnut Chart</option>
-              )}
-            </select>
-          </div>
-
-          <div className="control-group">
-            <label className="form-label">Year:</label>
-            <select
-              className="form-input"
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-            >
-              {Array.from({ length: 5 }, (_, i) => {
-                const year = new Date().getFullYear() - i;
-                return (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                );
-              })}
+              <option value="bar">Bar</option>
+              <option value="line">Line</option>
+              <option value="doughnut">Doughnut</option>
             </select>
           </div>
 
           {viewType === "monthly" && (
+            <>
+              <div className="control-group">
+                <label className="form-label" htmlFor="analytics-month">
+                  Month
+                </label>
+                <select
+                  id="analytics-month"
+                  className="form-input"
+                  value={selectedMonth}
+                  onChange={(event) => setSelectedMonth(event.target.value)}
+                >
+                  {MONTH_NAMES.map((name, index) => {
+                    const value = String(index + 1).padStart(2, "0");
+                    return (
+                      <option key={value} value={value}>
+                        {name}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+              <div className="control-group">
+                <label className="form-label" htmlFor="analytics-year">
+                  Year
+                </label>
+                <input
+                  id="analytics-year"
+                  type="number"
+                  className="form-input"
+                  value={selectedYear}
+                  onChange={(event) => setSelectedYear(event.target.value)}
+                  min="2000"
+                  max={today.getFullYear()}
+                />
+              </div>
+            </>
+          )}
+
+          {viewType !== "monthly" && (
             <div className="control-group">
-              <label className="form-label">Month:</label>
-              <select
+              <label className="form-label" htmlFor="analytics-year-general">
+                Year
+              </label>
+              <input
+                id="analytics-year-general"
+                type="number"
                 className="form-input"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-              >
-                <option value="">All Months</option>
-                {Array.from({ length: 12 }, (_, i) => {
-                  const month = (i + 1).toString();
-                  const monthName = new Date(2024, i).toLocaleDateString(
-                    "en-US",
-                    { month: "long" }
-                  );
-                  return (
-                    <option key={month} value={month}>
-                      {monthName}
-                    </option>
-                  );
-                })}
-              </select>
+                value={selectedYear}
+                onChange={(event) => setSelectedYear(event.target.value)}
+                min="2000"
+                max={today.getFullYear()}
+              />
             </div>
           )}
-        </div>
-      </div>
 
-      {/* Summary Statistics */}
-      <div className="analytics-summary">
-        <div className="summary-card expenses">
-          <h3>Total Expenses</h3>
-          <span className="amount">€{getTotalExpenses().toFixed(2)}</span>
+          <div className="control-group">
+            <label className="form-label" htmlFor="analytics-category">
+              Category
+            </label>
+            <select
+              id="analytics-category"
+              className="form-input"
+              value={selectedCategory}
+              onChange={(event) => setSelectedCategory(event.target.value)}
+            >
+              <option value="">All Categories</option>
+              {categories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
-        <div className="summary-card credits">
-          <h3>Total Credits</h3>
-          <span className="amount">€{getTotalCredits().toFixed(2)}</span>
-        </div>
-        <div
-          className={`summary-card net ${
-            getNetAmount() >= 0 ? "positive" : "negative"
+      </header>
+
+      <section className="analytics-summary">
+        <article className="summary-card">
+          <span className="summary-label">Expenses</span>
+          <span className="summary-value">{formatCurrency(totalExpenses)}</span>
+        </article>
+        <article className="summary-card">
+          <span className="summary-label">Income</span>
+          <span className="summary-value">{formatCurrency(totalIncome)}</span>
+        </article>
+        <article
+          className={`summary-card ${
+            netAmount >= 0 ? "positive" : "negative"
           }`}
         >
-          <h3>Net Amount</h3>
-          <span className="amount">€{getNetAmount().toFixed(2)}</span>
-        </div>
-      </div>
+          <span className="summary-label">Net</span>
+          <span className="summary-value">{formatCurrency(netAmount)}</span>
+        </article>
+      </section>
 
-      {/* Chart */}
-      <div className="chart-container">
+      <section className="analytics-chart card">
         {loading ? (
           <div className="loading-state">
-            <p>Loading analytics data...</p>
+            <p>Loading analytics data…</p>
           </div>
-        ) : chartData.labels && chartData.labels.length > 0 ? (
-          renderChart()
+        ) : activeDataset === 0 ? (
+          <div className="empty-state">
+            <p>No transactions available for the selected filters.</p>
+          </div>
         ) : (
-          <div className="no-data">
-            <p>
-              No data available for the selected period. Add some expenses and
-              income to see charts!
-            </p>
+          <div className="chart-wrapper">
+            <ChartComponent {...chartProps} />
           </div>
         )}
-      </div>
-    </div>
+      </section>
+
+      <section className="analytics-grid">
+        <article className="card analytics-card">
+          <h3>Top Categories</h3>
+          <ul className="category-list">
+            {topExpenseCategories.map((item) => (
+              <li key={item.category}>
+                <span className="category-name">{item.category}</span>
+                <span className="category-amount">
+                  {formatCurrency(item.expenses)}
+                </span>
+              </li>
+            ))}
+            {topExpenseCategories.length === 0 && (
+              <li className="empty-item">No categories to display.</li>
+            )}
+          </ul>
+        </article>
+
+        <article className="card analytics-card">
+          <h3>Category Insights</h3>
+          <ul className="insight-list">
+            <li>
+              <span className="insight-label">Highest spending</span>
+              <span className="insight-value">
+                {topExpenseCategories.length
+                  ? `${topExpenseCategories[0].category} (${formatCurrency(
+                      topExpenseCategories[0].expenses
+                    )})`
+                  : "N/A"}
+              </span>
+            </li>
+            <li>
+              <span className="insight-label">Average expense</span>
+              <span className="insight-value">
+                {filteredExpenses.length
+                  ? formatCurrency(totalExpenses / filteredExpenses.length)
+                  : formatCurrency(0)}
+              </span>
+            </li>
+            <li>
+              <span className="insight-label">Expense to income</span>
+              <span className="insight-value">
+                {totalIncome
+                  ? formatPercentage((totalExpenses / totalIncome) * 100)
+                  : "N/A"}
+              </span>
+            </li>
+          </ul>
+        </article>
+      </section>
+    </section>
   );
 };
 

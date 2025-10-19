@@ -1,0 +1,28 @@
+export const EXPENSE_CATEGORIES = [
+  "Carro",
+  "Credit",
+  "Eating Out",
+  "Education",
+  "Entertainment",
+  "Family",
+  "Fees",
+  "Freelance",
+  "Gifts",
+  "Groceries",
+  "Gym",
+  "Healthcare",
+  "Holidays",
+  "Insurance",
+  "Investment",
+  "Licenses",
+  "Loan/Credit Card",
+  "Others",
+  "Refunds",
+  "Salary",
+  "Self-Care",
+  "Shopping",
+  "Transport",
+  "Utilities",
+];
+
+export default EXPENSE_CATEGORIES;

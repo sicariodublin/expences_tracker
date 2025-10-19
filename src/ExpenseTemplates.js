@@ -1,138 +1,170 @@
-import { useState } from 'react';
-import './ExpenseTemplates.css';
+import { useMemo, useState } from "react";
+import "./ExpenseTemplates.css";
+import { formatCurrency } from "./utils/format";
+
+const DEFAULT_TEMPLATES = [
+  { name: "Coffee", amount: 3.5, category: "Eating Out", icon: "☕" },
+  { name: "Lunch", amount: 12, category: "Eating Out", icon: "🥗" },
+  { name: "Fuel", amount: 60, category: "Carro", icon: "⛽" },
+  { name: "Groceries", amount: 45, category: "Groceries", icon: "🛒" },
+  { name: "Gym Membership", amount: 35, category: "Gym", icon: "🏋️" },
+  { name: "Streaming", amount: 15.99, category: "Entertainment", icon: "🎬" },
+  { name: "Ride Share", amount: 8.5, category: "Transport", icon: "🚗" },
+  { name: "Healthcare", amount: 25, category: "Healthcare", icon: "💊" },
+  { name: "Pizza Night", amount: 17, category: "Eating Out", icon: "🍕" },
+];
+
+const today = () => new Date().toISOString().split("T")[0];
 
 const ExpenseTemplates = ({ onAddExpense, categories }) => {
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customTemplate, setCustomTemplate] = useState({
-    name: '',
-    amount: '',
-    category: ''
+    name: "",
+    amount: "",
+    category: "",
   });
 
-  // Predefined expense templates
-  const expenseTemplates = [
-    { name: 'Coffee', amount: 3.50, category: 'Eating Out', icon: '☕' },
-    { name: 'Lunch', amount: 12.00, category: 'Eating Out', icon: '🍽️' },
-    { name: 'Gas', amount: 60.00, category: 'Carro', icon: '⛽' },
-    { name: 'Groceries', amount: 45.00, category: 'Groceries', icon: '🛒' },
-    { name: 'Gym', amount: 35.00, category: 'Gym', icon: '💪' },
-    { name: 'Netflix', amount: 15.99, category: 'Entertainment', icon: '📺' },
-    { name: 'Uber', amount: 8.50, category: 'Transport', icon: '🚗' },
-      { name: 'Pharmacy', amount: 25.00, category: 'Healthcare', icon: '💊' },
-      { name: 'Pizza', amount: 17.00, category: 'Eating Out', icon: '🍕' },
-  ];
+  const templates = useMemo(() => DEFAULT_TEMPLATES, []);
 
   const handleTemplateClick = (template) => {
-    const today = new Date().toISOString().split('T')[0];
+    if (!onAddExpense) {
+      return;
+    }
+
     onAddExpense({
       name: template.name,
       amount: template.amount.toString(),
-      date: today,
-      category: template.category
+      date: today(),
+      category: template.category,
     });
   };
 
   const handleCustomSubmit = () => {
-    if (!customTemplate.name || !customTemplate.amount || !customTemplate.category) {
-      alert('Please fill in all fields for custom template');
+    if (
+      !customTemplate.name ||
+      !customTemplate.amount ||
+      !customTemplate.category
+    ) {
+      alert("Please complete all fields to save the custom expense.");
       return;
     }
-    
-    const today = new Date().toISOString().split('T')[0];
+
     onAddExpense({
       name: customTemplate.name,
       amount: customTemplate.amount,
-      date: today,
-      category: customTemplate.category
+      date: today(),
+      category: customTemplate.category,
     });
-    
-    setCustomTemplate({ name: '', amount: '', category: '' });
+
+    setCustomTemplate({ name: "", amount: "", category: "" });
     setShowCustomForm(false);
   };
 
   return (
-    <div className="expense-templates">
+    <section className="expense-templates card">
       <div className="templates-header">
-        <h2>⚡ Quick Add Expenses</h2>
-        <p>Click any template to instantly add a common expense</p>
-      </div>
-      
-      <div className="templates-grid">
-        {expenseTemplates.map((template, index) => (
-          <button
-            key={index}
-            className="template-btn"
-            onClick={() => handleTemplateClick(template)}
-            title={`Add ${template.name} - €${template.amount}`}
-          >
-            <div className="template-icon">{template.icon}</div>
-            <div className="template-info">
-              <span className="template-name">{template.name}</span>
-              <span className="template-amount">€{template.amount}</span>
-              <span className="template-category">{template.category}</span>
-            </div>
-          </button>
-        ))}
-        
-        {/* Custom Template Button */}
+        <div>
+          <h2>Quick Add Expenses</h2>
+          <p>Select a template to instantly add a frequent purchase.</p>
+        </div>
         <button
-          className="template-btn custom-btn"
-          onClick={() => setShowCustomForm(!showCustomForm)}
+          type="button"
+          className="btn btn-outline"
+          onClick={() => setShowCustomForm((prev) => !prev)}
         >
-          <div className="template-icon">➕</div>
-          <div className="template-info">
-            <span className="template-name">Custom</span>
-            <span className="template-amount">Add Your Own</span>
-          </div>
+          {showCustomForm ? "Close Custom Form" : "Create Custom Template"}
         </button>
       </div>
 
-      {/* Custom Template Form */}
+      <div className="templates-grid">
+        {templates.map((template) => (
+          <button
+            type="button"
+            key={template.name}
+            className="template-btn"
+            onClick={() => handleTemplateClick(template)}
+          >
+            <span className="template-icon" aria-hidden="true">
+              {template.icon}
+            </span>
+            <span className="template-info">
+              <span className="template-name">{template.name}</span>
+              <span className="template-category">{template.category}</span>
+              <span className="template-amount">
+                {formatCurrency(template.amount)}
+              </span>
+            </span>
+          </button>
+        ))}
+      </div>
+
       {showCustomForm && (
         <div className="custom-template-form">
-          <h3>Create Custom Expense</h3>
+          <h3>Create custom expense</h3>
           <div className="custom-form-grid">
             <input
               type="text"
               placeholder="Expense name"
               value={customTemplate.name}
-              onChange={(e) => setCustomTemplate({...customTemplate, name: e.target.value})}
+              onChange={(event) =>
+                setCustomTemplate((prev) => ({
+                  ...prev,
+                  name: event.target.value,
+                }))
+              }
               className="custom-input"
             />
             <input
               type="number"
               placeholder="Amount"
               value={customTemplate.amount}
-              onChange={(e) => setCustomTemplate({...customTemplate, amount: e.target.value})}
+              onChange={(event) =>
+                setCustomTemplate((prev) => ({
+                  ...prev,
+                  amount: event.target.value,
+                }))
+              }
               className="custom-input"
               step="0.01"
               min="0"
             />
             <select
               value={customTemplate.category}
-              onChange={(e) => setCustomTemplate({...customTemplate, category: e.target.value})}
+              onChange={(event) =>
+                setCustomTemplate((prev) => ({
+                  ...prev,
+                  category: event.target.value,
+                }))
+              }
               className="custom-select"
             >
               <option value="">Select category</option>
               {categories.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
               ))}
             </select>
           </div>
           <div className="custom-form-actions">
-            <button onClick={handleCustomSubmit} className="btn btn-primary">
+            <button
+              type="button"
+              onClick={handleCustomSubmit}
+              className="btn btn-primary"
+            >
               Add Custom Expense
             </button>
-            <button 
-              onClick={() => setShowCustomForm(false)} 
-              className="btn btn-secondary"
+            <button
+              type="button"
+              onClick={() => setShowCustomForm(false)}
+              className="btn btn-ghost"
             >
               Cancel
             </button>
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 };
 

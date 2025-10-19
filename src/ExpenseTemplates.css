@@ -1,193 +1,109 @@
 .expense-templates {
-  background: var(--card-bg);
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 24px;
-  box-shadow: var(--shadow);
-  border: 1px solid var(--border-color);
+  margin-bottom: 32px;
 }
 
 .templates-header {
-  text-align: center;
-  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
 }
 
 .templates-header h2 {
-  color: var(--text-primary);
-  margin: 0 0 8px 0;
-  font-size: 1.5rem;
-  font-weight: 600;
+  margin: 0;
+  font-size: 20px;
 }
 
 .templates-header p {
-  color: var(--text-secondary);
   margin: 0;
-  font-size: 0.9rem;
+  color: var(--color-muted);
 }
 
 .templates-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
-  margin-bottom: 24px;
 }
 
 .template-btn {
-  background: var(--card-bg);
-  border: 2px solid var(--border-color);
-  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   padding: 16px;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
   display: flex;
   align-items: center;
-  gap: 12px;
-  text-align: left;
-  min-height: 80px;
+  gap: 14px;
+  cursor: pointer;
+  transition: transform var(--transition), box-shadow var(--transition),
+    border-color var(--transition);
 }
 
 .template-btn:hover {
-  border-color: var(--primary-color);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-}
-
-.template-btn:active {
-  transform: translateY(0);
+  transform: translateY(-3px);
+  border-color: rgba(37, 99, 235, 0.45);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
 }
 
 .template-icon {
-  font-size: 2rem;
+  font-size: 30px;
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+  border-radius: 14px;
+  width: 50px;
+  height: 50px;
+  display: grid;
+  place-items: center;
   flex-shrink: 0;
 }
 
 .template-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  flex: 1;
+  gap: 6px;
 }
 
 .template-name {
   font-weight: 600;
-  color: var(--text-primary);
-  font-size: 1rem;
 }
 
 .template-amount {
   font-weight: 700;
-  color: var(--primary-color);
-  font-size: 1.1rem;
+  color: #2563eb;
 }
 
 .template-category {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  background: var(--bg-secondary);
-  padding: 2px 0;
-  border-radius: 12px;
-  align-self: flex-start;
-}
-
-.custom-btn {
-  border-style: dashed;
-  border-color: var(--text-secondary);
-  opacity: 0.8;
-}
-
-.custom-btn:hover {
-  opacity: 1;
-  border-color: var(--primary-color);
+  font-size: 13px;
+  color: var(--color-muted);
 }
 
 .custom-template-form {
-  background: var(--bg-secondary);
-  border-radius: 12px;
+  margin-top: 24px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed rgba(37, 99, 235, 0.4);
   padding: 20px;
-  border: 1px solid var(--border-color);
+  background: rgba(37, 99, 235, 0.05);
 }
 
 .custom-template-form h3 {
   margin: 0 0 16px 0;
-  color: var(--text-primary);
-  font-size: 1.2rem;
+  font-size: 18px;
 }
 
 .custom-form-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
   gap: 12px;
-  margin-bottom: 16px;
 }
 
-.custom-input,
-.custom-select {
-  padding: 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: var(--gray-200);
-  color: var(--text-primary);
-  font-size: 0.9rem;
-}
-
-.custom-input:focus,
-.custom-select:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+@media (min-width: 768px) {
+  .custom-form-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .custom-form-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
-  justify-content: flex-end;
-}
-
-.custom-form-actions .btn {
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-/* Mobile Responsiveness */
-@media (max-width: 768px) {
-  .templates-grid {
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
-  }
-  
-  .template-btn {
-    padding: 12px;
-    min-height: 70px;
-  }
-  
-  .template-icon {
-    font-size: 1.5rem;
-  }
-  
-  .custom-form-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-  
-  .custom-form-actions {
-    flex-direction: column;
-  }
-}
-
-/* Dark mode support */
-.dark .expense-templates {
-  background: var(--card-bg-dark);
-  border-color: var(--border-color-dark);
-}
-
-.dark .template-btn {
-  background: var(--card-bg-dark);
-  border-color: var(--border-color-dark);
-}
-
-.dark .custom-template-form {
-  background: var(--bg-secondary-dark);
-  border-color: var(--border-color-dark);
+  margin-top: 16px;
 }
