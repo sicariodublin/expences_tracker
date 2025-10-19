@@ -438,7 +438,20 @@ a {
 }
 
 .chart-container {
-  min-height: 320px;
+  width: min(440px, 100%);
+  margin: 0 auto;
+  min-height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.chart-container canvas {
+  width: 100% !important;
+  height: auto !important;
+  max-height: 420px;
 }
 
 .chart-empty {
@@ -482,5 +495,13 @@ a {
 
   .chart-actions {
     justify-content: stretch;
+  }
+
+  .modal-content {
+    padding: 18px;
+  }
+
+  .chart-container {
+    max-width: 100%;
   }
 }

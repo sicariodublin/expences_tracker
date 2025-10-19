@@ -21,6 +21,8 @@ const MONTH_LABELS = [
 ];
 
 const parseAmount = (value) => parseFloat(value) || 0;
+const roundToTwo = (value) =>
+  Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 
 const SpendingTrends = () => {
   const today = new Date();
@@ -63,7 +65,7 @@ const SpendingTrends = () => {
         }
       });
 
-      return totals;
+      return totals.map(roundToTwo);
     },
     [selectedYear]
   );
@@ -89,10 +91,18 @@ const SpendingTrends = () => {
   );
 
   const totals = useMemo(() => {
-    const currentExpenses = currentYearExpenses.reduce((acc, val) => acc + val, 0);
-    const previousExpenses = previousYearExpenses.reduce((acc, val) => acc + val, 0);
-    const currentIncome = currentYearIncome.reduce((acc, val) => acc + val, 0);
-    const previousIncome = previousYearIncome.reduce((acc, val) => acc + val, 0);
+    const currentExpenses = roundToTwo(
+      currentYearExpenses.reduce((acc, val) => acc + val, 0)
+    );
+    const previousExpenses = roundToTwo(
+      previousYearExpenses.reduce((acc, val) => acc + val, 0)
+    );
+    const currentIncome = roundToTwo(
+      currentYearIncome.reduce((acc, val) => acc + val, 0)
+    );
+    const previousIncome = roundToTwo(
+      previousYearIncome.reduce((acc, val) => acc + val, 0)
+    );
 
     const expenseGrowth =
       previousExpenses === 0
@@ -108,8 +118,8 @@ const SpendingTrends = () => {
           : 0
         : ((currentIncome - previousIncome) / previousIncome) * 100;
 
-    const currentBalance = currentIncome - currentExpenses;
-    const previousBalance = previousIncome - previousExpenses;
+    const currentBalance = roundToTwo(currentIncome - currentExpenses);
+    const previousBalance = roundToTwo(previousIncome - previousExpenses);
 
     return {
       currentExpenses,
@@ -198,7 +208,10 @@ const SpendingTrends = () => {
 
     return {
       labels: MONTH_LABELS,
-      datasets,
+      datasets: datasets.map((dataset) => ({
+        ...dataset,
+        data: dataset.data.map(roundToTwo),
+      })),
     };
   }, [
     chartType,

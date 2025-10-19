@@ -1,0 +1,189 @@
+.automation-container {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.automation-card .grid-form {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin-bottom: 18px;
+}
+
+.automation-card input,
+.automation-card select {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  padding: 11px 12px;
+  font-size: 14px;
+}
+
+.automation-card input:focus,
+.automation-card select:focus {
+  outline: none;
+  border-color: rgba(37, 99, 235, 0.65);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.automation-card .form-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.styled-table.compact th,
+.styled-table.compact td {
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.table-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.recon-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.recon-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.recon-summary div {
+  background: rgba(37, 99, 235, 0.08);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  min-width: 160px;
+}
+
+.recon-summary .label {
+  display: block;
+  font-size: 12px;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.recon-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.recon-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recon-card header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.status-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-on_time .status-pill {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--color-success);
+}
+
+.status-partial .status-pill,
+.status-late .status-pill,
+.status-missing .status-pill {
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--color-danger);
+}
+
+.recon-card details {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.recon-card ul {
+  padding-left: 18px;
+}
+
+.loading-state,
+.empty-state {
+  text-align: center;
+  color: var(--color-muted);
+  padding: 14px 10px;
+}
+
+.report-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  margin-bottom: 20px;
+}
+
+.export-form,
+.schedule-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: rgba(15, 23, 42, 0.03);
+}
+
+.export-form h3,
+.schedule-form h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.date-range {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.schedule-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.btn.btn-sm {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .automation-card .grid-form {
+    grid-template-columns: 1fr;
+  }
+
+  .recon-summary {
+    flex-direction: column;
+  }
+}

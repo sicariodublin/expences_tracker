@@ -11,6 +11,7 @@ import "./App.css";
 import BudgetGoals from "./BudgetGoals";
 import ExpenseTemplates from "./ExpenseTemplates";
 import SpendingTrends from "./SpendingTrends";
+import Automation from "./Automation";
 import apiClient from "./api/apiClient";
 import { EXPENSE_CATEGORIES } from "./constants/categories";
 import { formatCurrency } from "./utils/format";
@@ -898,6 +899,13 @@ function App() {
         >
           Analytics
         </button>
+        <button
+          type="button"
+          className={`tab-button ${activeTab === "automation" ? "active" : ""}`}
+          onClick={() => setActiveTab("automation")}
+        >
+          Automation
+        </button>
       </nav>
 
       <main className="main-content">
@@ -910,6 +918,7 @@ function App() {
               <SpendingTrends />
             </>
           )}
+          {activeTab === "automation" && <Automation />}
         </div>
       </main>
 
