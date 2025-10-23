@@ -185,7 +185,8 @@
 }
 
 .progress-percentage {
-  margin-top: 8px;
+  display: block;
+  margin-top: 15px;
   font-size: 14px;
   font-weight: 600;
   color: var(--color-muted);
@@ -194,7 +195,7 @@
 .card-actions {
   display: flex;
   gap: 12px;
-  flex-wrap: wrap;
+  margin-top: 15px;
 }
 
 .loading-state,

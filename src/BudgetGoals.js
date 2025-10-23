@@ -9,25 +9,25 @@ const STATUS_CONFIG = [
     threshold: 100,
     label: "Over Budget",
     icon: "⛔",
-    color: "var(--danger-color)",
+    color: "var(--color-danger)",
   },
   {
     threshold: 90,
     label: "Critical",
     icon: "⚠️",
-    color: "var(--danger-color)",
+    color: "var(--color-danger)",
   },
   {
     threshold: 75,
     label: "Watch",
     icon: "🟠",
-    color: "var(--warning-color)",
+    color: "var(--color-warning)",
   },
   {
     threshold: 0,
     label: "On Track",
     icon: "✅",
-    color: "var(--success-color)",
+    color: "var(--color-success)",
   },
 ];
 
