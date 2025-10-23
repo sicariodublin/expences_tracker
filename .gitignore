@@ -1,3 +1,4 @@
 backend/.env 
 expense-tracker_Backup_19_10_2025.zip
 *.zip
+node_modules
