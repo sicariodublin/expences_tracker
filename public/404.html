@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Redirecting...</title>
+    <script>
+      (function () {
+        var l = window.location;
+        var repoBase = '/expences_tracker';
+        // Remove the repo base from the path, keep the rest
+        var path = l.pathname.replace(/^\/expences_tracker/, '');
+        // Build redirect URL to index.html, preserving path via hash and query/hash params
+        var newUrl = repoBase + '/index.html' + (path ? '#' + path : '');
+        newUrl += l.search + l.hash;
+        window.location.replace(newUrl);
+      })();
+    </script>
+    <noscript>
+      <meta http-equiv="refresh" content="0; url=/expences_tracker/index.html" />
+    </noscript>
+  </head>
+  <body>
+    <p>Redirecting… If you are not redirected automatically, follow this
+      <a href="/expences_tracker/index.html">link to the app</a>.
+    </p>
+  </body>
+</html>
