@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/expences_tracker/static/css/main.5c5dac63.css",
+    "main.js": "/expences_tracker/static/js/main.94edf511.js",
+    "index.html": "/expences_tracker/index.html",
+    "main.5c5dac63.css.map": "/expences_tracker/static/css/main.5c5dac63.css.map",
+    "main.94edf511.js.map": "/expences_tracker/static/js/main.94edf511.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.5c5dac63.css",
+    "static/js/main.94edf511.js"
+  ]
+}
