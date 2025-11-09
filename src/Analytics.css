@@ -144,6 +144,86 @@
   padding: 24px 12px;
 }
 
+/* Listing layout and stickiness */
+.listing-wrapper {
+  overflow: auto;
+  max-width: 100%;
+}
+
+.listing-wrapper .styled-table {
+  table-layout: auto;
+}
+
+/* Make Month header sticky with its tinted background */
+.listing-wrapper .styled-table thead th.month-header {
+  position: sticky;
+  left: 0;
+  background: rgba(37, 99, 235, 0.10);
+  z-index: 2;
+  min-width: 88px; /* consistent width for Month */
+  box-shadow: 2px 0 0 rgba(148, 163, 184, 0.25);
+}
+
+/* Sticky month cells and footer total cell */
+.listing-wrapper .styled-table tbody td.month-cell,
+.listing-wrapper .styled-table tfoot th.month-header {
+  position: sticky;
+  left: 0;
+  background: var(--color-surface);
+  z-index: 2;
+  min-width: 88px;
+  box-shadow: 2px 0 0 rgba(148, 163, 184, 0.25);
+}
+
+/* Compact numeric columns; better alignment */
+.listing-wrapper .styled-table th,
+.listing-wrapper .styled-table td {
+  padding: 6px 10px;
+}
+
+.num-cell {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Color accents */
+.month-header {
+  background: rgba(37, 99, 235, 0.10);
+}
+
+.month-cell {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.group-expenses {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--color-danger);
+}
+
+.group-income {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--color-success);
+}
+
+.cat-header {
+  font-weight: 600;
+}
+
+.cat-expenses {
+  color: var(--color-danger);
+}
+
+.cat-income {
+  color: var(--color-success);
+}
+
+.cat-net {
+  color: var(--color-warning);
+}
+
+
 @media (max-width: 720px) {
   .analytics-header {
     flex-direction: column;
@@ -157,3 +237,41 @@
     flex: 1 1 140px;
   }
 }
+
+/* Override global table header background for compact listing */
+.listing-wrapper .styled-table.compact th {
+  background: transparent;
+}
+
+/* Stronger selectors to beat `.styled-table th` */
+.listing-wrapper .styled-table thead th.group-expenses {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--color-danger);
+}
+
+.listing-wrapper .styled-table thead th.group-income {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--color-success);
+}
+
+.listing-wrapper .styled-table thead th.cat-expenses {
+  color: #0cdb91
+}
+
+.listing-wrapper .styled-table thead th.cat-income {
+  color: var(--color-success);
+}
+
+/* Numeric cell coloring by value */
+.listing-wrapper .styled-table td.num-cell.negative-cell {
+  color: var(--color-danger);
+}
+
+.listing-wrapper .styled-table td.num-cell.positive-cell {
+  color: var(--color-success);
+}
+
+.listing-wrapper .styled-table td.num-cell.zero-cell {
+  color: var(--color-muted);
+}
+

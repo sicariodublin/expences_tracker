@@ -50,6 +50,8 @@ const Analytics = () => {
   const [credits, setCredits] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // Listing option: toggle Income column
+  const [includeIncome, setIncludeIncome] = useState(true);
   const categories = EXPENSE_CATEGORIES;
 
   const fetchData = useCallback(async () => {
@@ -187,6 +189,63 @@ const Analytics = () => {
     [categoryBreakdown]
   );
 
+  // Listing view matrix: monthly totals
+  // - Expenses per category (excluding "Income"), shown as negative values
+  // - Income single column per month (sum of all credits), shown positive
+  const monthlyCategoryMatrix = useMemo(() => {
+    const expenseCatsAll = categories.filter((c) => c !== "Income");
+    const expenseCats =
+      selectedCategory && selectedCategory !== "Income"
+        ? [selectedCategory]
+        : selectedCategory === "Income"
+        ? []
+        : expenseCatsAll;
+
+    const makeRow = () =>
+      Object.fromEntries(expenseCats.map((c) => [c, 0]));
+
+    const expensesTotals = Array.from({ length: 12 }, makeRow);
+    const incomeByMonth = Array(12).fill(0);
+
+    expenses.forEach((exp) => {
+      const amount = parseFloat(exp.amount) || 0;
+      if (!amount) return;
+      const { year, month } = getDateParts(exp.date);
+      if (year !== selectedYear) return;
+      const cat = exp.category;
+      if (!expenseCats.includes(cat)) return;
+      const idx = Number(month) - 1;
+      expensesTotals[idx][cat] += amount;
+    });
+
+    credits.forEach((credit) => {
+      const amount = parseFloat(credit.amount) || 0;
+      if (!amount) return;
+      const { year, month } = getDateParts(credit.date);
+      if (year !== selectedYear) return;
+      const idx = Number(month) - 1;
+      incomeByMonth[idx] += amount;
+    });
+
+    return { expenseCats, expensesTotals, incomeByMonth };
+  }, [expenses, credits, categories, selectedCategory, selectedYear]);
+  const monthlyCategoryTotals = useMemo(() => {
+    const cats = selectedCategory ? [selectedCategory] : categories;
+    const totals = Array.from({ length: 12 }, () =>
+      Object.fromEntries(cats.map((c) => [c, 0]))
+    );
+    expenses.forEach((exp) => {
+      const amount = parseFloat(exp.amount) || 0;
+      if (!amount) return;
+      const { year, month } = getDateParts(exp.date);
+      if (year !== selectedYear) return;
+      const cat = exp.category;
+      if (!cats.includes(cat)) return;
+      const idx = Number(month) - 1;
+      totals[idx][cat] += amount;
+    });
+    return { cats, totals };
+  }, [expenses, categories, selectedCategory, selectedYear]);
   const chartData = useMemo(() => {
     if (loading) {
       return { labels: [], datasets: [] };
@@ -526,8 +585,25 @@ const Analytics = () => {
               <option value="bar">Bar</option>
               <option value="line">Line</option>
               <option value="doughnut">Doughnut</option>
+              <option value="listing">Listing</option>
             </select>
           </div>
+
+          {chartType === "listing" && (
+            <div className="control-group">
+              <label className="form-label">Options</label>
+              <div className="toggle-row">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={includeIncome}
+                    onChange={(e) => setIncludeIncome(e.target.checked)}
+                  />{" "}
+                  Include Income
+                </label>
+              </div>
+            </div>
+          )}
 
           {viewType === "monthly" && (
             <>
@@ -630,9 +706,87 @@ const Analytics = () => {
           <div className="loading-state">
             <p>Loading analytics data…</p>
           </div>
-        ) : activeDataset === 0 ? (
+        ) : activeDataset === 0 && chartType !== "listing" ? (
           <div className="empty-state">
             <p>No transactions available for the selected filters.</p>
+          </div>
+        ) : chartType === "listing" ? (
+          <div className="listing-wrapper">
+            <table className="styled-table compact">
+              <thead>
+                <tr>
+                  <th className="month-header" rowSpan={2}>Month</th>
+                  <th
+                    className="group-expenses"
+                    colSpan={monthlyCategoryMatrix.expenseCats.length}
+                  >
+                    Expenses
+                  </th>
+                  {includeIncome && (
+                    <th className="group-income" colSpan={1}>
+                      Income
+                    </th>
+                  )}
+                </tr>
+                <tr>
+                  {monthlyCategoryMatrix.expenseCats.map((cat) => (
+                    <th key={`exp-${cat}`} className="cat-header cat-expenses">
+                      {cat}
+                    </th>
+                  ))}
+                  {includeIncome && (
+                    <th className="cat-header cat-income">Income</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {MONTH_NAMES.map((name, idx) => (
+                  <tr key={name}>
+                    <td className="month-cell">{name}</td>
+                    {monthlyCategoryMatrix.expenseCats.map((cat) => (
+                      <td key={`exp-${idx}-${cat}`} className="num-cell negative-cell">
+                        {formatCurrency(
+                          -(monthlyCategoryMatrix.expensesTotals[idx][cat] || 0)
+                        )}
+                      </td>
+                    ))}
+                    {includeIncome && (
+                      <td key={`inc-${idx}`} className="num-cell positive-cell">
+                        {formatCurrency(
+                          monthlyCategoryMatrix.incomeByMonth[idx] || 0
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th className="month-header">Total</th>
+                  {monthlyCategoryMatrix.expenseCats.map((cat) => {
+                    const total = monthlyCategoryMatrix.expensesTotals.reduce(
+                      (sum, row) => sum + (row[cat] || 0),
+                      0
+                    );
+                    return (
+                      <th key={`exp-total-${cat}`} className="num-cell negative-cell">
+                        {formatCurrency(-total)}
+                      </th>
+                    );
+                  })}
+                  {includeIncome && (
+                    <th className="num-cell positive-cell">
+                      {formatCurrency(
+                        monthlyCategoryMatrix.incomeByMonth.reduce(
+                          (sum, value) => sum + (value || 0),
+                          0
+                        )
+                      )}
+                    </th>
+                  )}
+                </tr>
+              </tfoot>
+            </table>
           </div>
         ) : (
           <div className="chart-wrapper">
