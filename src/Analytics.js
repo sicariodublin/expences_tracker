@@ -189,6 +189,8 @@ const Analytics = () => {
     [categoryBreakdown]
   );
 
+  
+
   // Listing view matrix: monthly totals
   // - Expenses per category (excluding "Income"), shown as negative values
   // - Income single column per month (sum of all credits), shown positive
@@ -226,6 +228,8 @@ const Analytics = () => {
       const idx = Number(month) - 1;
       incomeByMonth[idx] += amount;
     });
+
+    
 
     return { expenseCats, expensesTotals, incomeByMonth };
   }, [expenses, credits, categories, selectedCategory, selectedYear]);
@@ -743,18 +747,31 @@ const Analytics = () => {
                 {MONTH_NAMES.map((name, idx) => (
                   <tr key={name}>
                     <td className="month-cell">{name}</td>
-                    {monthlyCategoryMatrix.expenseCats.map((cat) => (
-                      <td key={`exp-${idx}-${cat}`} className="num-cell negative-cell">
-                        {formatCurrency(
-                          -(monthlyCategoryMatrix.expensesTotals[idx][cat] || 0)
-                        )}
-                      </td>
-                    ))}
+                    {monthlyCategoryMatrix.expenseCats.map((cat) => {
+                      const raw = monthlyCategoryMatrix.expensesTotals[idx][cat] || 0;
+                      const val = -raw; // show expenses as negative
+                      const cls =
+                        val < 0 ? "negative-cell" :
+                        val > 0 ? "positive-cell" :
+                        "zero-cell";
+                      return (
+                        <td key={`exp-${idx}-${cat}`} className={`num-cell ${cls}`}>
+                          {formatCurrency(val)}
+                        </td>
+                      );
+                    })}
                     {includeIncome && (
-                      <td key={`inc-${idx}`} className="num-cell positive-cell">
-                        {formatCurrency(
-                          monthlyCategoryMatrix.incomeByMonth[idx] || 0
-                        )}
+                      <td
+                        key={`inc-${idx}`}
+                        className={`num-cell ${
+                          (monthlyCategoryMatrix.incomeByMonth[idx] || 0) > 0
+                            ? "positive-cell"
+                            : (monthlyCategoryMatrix.incomeByMonth[idx] || 0) < 0
+                            ? "negative-cell"
+                            : "zero-cell"
+                        }`}
+                      >
+                        {formatCurrency(monthlyCategoryMatrix.incomeByMonth[idx] || 0)}
                       </td>
                     )}
                   </tr>
@@ -764,18 +781,37 @@ const Analytics = () => {
                 <tr>
                   <th className="month-header">Total</th>
                   {monthlyCategoryMatrix.expenseCats.map((cat) => {
-                    const total = monthlyCategoryMatrix.expensesTotals.reduce(
+                    const totalRaw = monthlyCategoryMatrix.expensesTotals.reduce(
                       (sum, row) => sum + (row[cat] || 0),
                       0
                     );
+                    const totalVal = -totalRaw;
+                    const totalCls =
+                      totalVal < 0 ? "negative-cell" :
+                      totalVal > 0 ? "positive-cell" :
+                      "zero-cell";
                     return (
-                      <th key={`exp-total-${cat}`} className="num-cell negative-cell">
-                        {formatCurrency(-total)}
+                      <th key={`exp-total-${cat}`} className={`num-cell ${totalCls}`}>
+                        {formatCurrency(totalVal)}
                       </th>
                     );
                   })}
                   {includeIncome && (
-                    <th className="num-cell positive-cell">
+                    <th
+                      className={`num-cell ${
+                        monthlyCategoryMatrix.incomeByMonth.reduce(
+                          (sum, value) => sum + (value || 0),
+                          0
+                        ) > 0
+                          ? "positive-cell"
+                          : monthlyCategoryMatrix.incomeByMonth.reduce(
+                              (sum, value) => sum + (value || 0),
+                              0
+                            ) < 0
+                          ? "negative-cell"
+                          : "zero-cell"
+                      }`}
+                    >
                       {formatCurrency(
                         monthlyCategoryMatrix.incomeByMonth.reduce(
                           (sum, value) => sum + (value || 0),

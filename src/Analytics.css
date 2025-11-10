@@ -262,16 +262,13 @@
   color: var(--color-success);
 }
 
+.styled-table th {
+  font-weight: 600;
+  color: #0f1010;
+}
+
 /* Numeric cell coloring by value */
-.listing-wrapper .styled-table td.num-cell.negative-cell {
-  color: var(--color-danger);
-}
-
-.listing-wrapper .styled-table td.num-cell.positive-cell {
-  color: var(--color-success);
-}
-
-.listing-wrapper .styled-table td.num-cell.zero-cell {
-  color: var(--color-muted);
-}
+.listing-wrapper .styled-table td.num-cell.negative-cell { color: var(--color-danger); }
+.listing-wrapper .styled-table td.num-cell.positive-cell { color: var(--color-success); }
+.listing-wrapper .styled-table td.num-cell.zero-cell { color: var(--color-muted); }
 
