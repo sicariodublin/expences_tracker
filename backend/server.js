@@ -10,6 +10,7 @@ const ExcelJS = require("exceljs");
 const nodemailer = require("nodemailer");
 const cron = require("node-cron");
 const dayjs = require("dayjs");
+const { normalizeBankRows } = require("./utils/csvNormalizer");
 
 dotenv.config();
 
@@ -474,6 +475,45 @@ app.delete("/api/expenses/:id", (req, res) => {
   });
 });
 
+// Update Expense
+app.put("/api/expenses/:id", (req, res) => {
+  const { name, amount, date, category } = req.body;
+  const fields = [];
+  const params = [];
+
+  if (name !== undefined) {
+    fields.push("name = ?");
+    params.push(name);
+  }
+  if (amount !== undefined) {
+    fields.push("amount = ?");
+    params.push(amount);
+  }
+  if (date !== undefined) {
+    fields.push("date = ?");
+    params.push(date);
+  }
+  if (category !== undefined) {
+    fields.push("category = ?");
+    params.push(category);
+  }
+
+  if (!fields.length) {
+    return res.status(400).json({ error: "No fields provided to update" });
+  }
+
+  const query = `UPDATE expenses SET ${fields.join(", ")} WHERE id = ?`;
+  params.push(req.params.id);
+
+  db.query(query, params, (err) => {
+    if (err) {
+      console.error("Error updating expense:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+    res.json({ message: "Expense updated" });
+  });
+});
+
 // Get all credits
 /* app.get("/api/expenses", async (req, res) => {
   const { startDate, endDate, name } = req.query;
@@ -565,6 +605,45 @@ app.delete("/api/credits/:id", (req, res) => {
   db.query("DELETE FROM credits WHERE id = ?", [id], (err, result) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ message: "Credit deleted successfully!" });
+  });
+});
+
+// Update Credit
+app.put("/api/credits/:id", (req, res) => {
+  const { name, amount, date, category } = req.body;
+  const fields = [];
+  const params = [];
+
+  if (name !== undefined) {
+    fields.push("name = ?");
+    params.push(name);
+  }
+  if (amount !== undefined) {
+    fields.push("amount = ?");
+    params.push(amount);
+  }
+  if (date !== undefined) {
+    fields.push("date = ?");
+    params.push(date);
+  }
+  if (category !== undefined) {
+    fields.push("category = ?");
+    params.push(category);
+  }
+
+  if (!fields.length) {
+    return res.status(400).json({ error: "No fields provided to update" });
+  }
+
+  const query = `UPDATE credits SET ${fields.join(", ")} WHERE id = ?`;
+  params.push(req.params.id);
+
+  db.query(query, params, (err) => {
+    if (err) {
+      console.error("Error updating credit:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+    res.json({ message: "Credit updated" });
   });
 });
 
@@ -1095,31 +1174,52 @@ const upload = multer({ dest: "uploads/" });
 
 app.post("/api/upload", upload.single("file"), (req, res) => {
   const filePath = req.file.path;
-  const results = [];
+  const rows = [];
 
   fs.createReadStream(filePath)
-    .pipe(csv())
+    .pipe(
+      csv({
+        mapHeaders: ({ header }) => (header ? header.trim() : header),
+        mapValues: ({ value }) => (typeof value === "string" ? value.trim() : value),
+      })
+    )
     .on("data", (data) => {
-      results.push(data);
+      rows.push(data);
     })
     .on("end", () => {
-      results.forEach((row) => {
-        const { name, amount, date, category } = row; // Ensure 'category' is extracted
+      const normalized = normalizeBankRows(rows);
 
-        // Provide a default category if missing
-        const categoryValue = category ? category : "Uncategorized";
+      let expensesCount = 0;
+      let incomeCount = 0;
 
-        const query =
-          "INSERT INTO expenses (name, amount, date, category) VALUES (?, ?, ?, ?)";
-        db.query(query, [name, amount, date, categoryValue], (err) => {
-          if (err) {
-            console.error("Error inserting data:", err);
-          }
-        });
+      normalized.forEach((item) => {
+        const name = item.name || "Unnamed";
+        const amount = item.amount || 0;
+        const date = item.date;
+        const category = item.category || (item.type === "income" ? "Income" : "Uncategorized");
+
+        if (item.type === "income") {
+          const q = "INSERT INTO credits (name, amount, date, category) VALUES (?, ?, ?, ?)";
+          db.query(q, [name, amount, date, category], (err) => {
+            if (err) console.error("Error inserting credit:", err);
+          });
+          incomeCount += 1;
+        } else {
+          const q = "INSERT INTO expenses (name, amount, date, category) VALUES (?, ?, ?, ?)";
+          db.query(q, [name, amount, date, category], (err) => {
+            if (err) console.error("Error inserting expense:", err);
+          });
+          expensesCount += 1;
+        }
       });
 
-      fs.unlinkSync(filePath); // Delete the uploaded file after processing
-      res.status(200).json({ message: "CSV data imported successfully!" });
+      fs.unlinkSync(filePath);
+      res.status(200).json({
+        message: "Import completed",
+        imported: normalized.length,
+        expenses: expensesCount,
+        incomes: incomeCount,
+      });
     });
 });
 
