@@ -210,6 +210,48 @@ const fetchReportData = async (start, end) => {
   };
 };
 
+const euro = (n) => `€${(parseFloat(n) || 0).toFixed(2)}`;
+const heading = (doc, text) => {
+  const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  doc.fontSize(14).text(text, doc.page.margins.left, doc.y, { underline: true, align: "center", width: contentWidth });
+  doc.y += 6;
+};
+const drawTable = (doc, headers, rows, widths) => {
+  const left = doc.page.margins.left;
+  const right = doc.page.width - doc.page.margins.right;
+  let y = doc.y;
+  const rowH = 18;
+  doc.fontSize(11).font("Helvetica-Bold");
+  let x = left;
+  headers.forEach((h, i) => {
+    doc.text(h, x, y, { width: widths[i], align: i === headers.length - 1 ? "right" : "left" });
+    x += widths[i];
+  });
+  y += rowH;
+  doc.font("Helvetica");
+  for (const row of rows) {
+    if (y + rowH > doc.page.height - doc.page.margins.bottom) {
+      doc.addPage();
+      y = doc.page.margins.top;
+      x = left;
+      doc.font("Helvetica-Bold");
+      headers.forEach((h, i) => {
+        doc.text(h, x, y, { width: widths[i], align: i === headers.length - 1 ? "right" : "left" });
+        x += widths[i];
+      });
+      y += rowH;
+      doc.font("Helvetica");
+    }
+    x = left;
+    row.forEach((cell, i) => {
+      doc.text(String(cell), x, y, { width: widths[i], align: i === row.length - 1 ? "right" : "left", ellipsis: true });
+      x += widths[i];
+    });
+    y += rowH;
+  }
+  doc.y = y + 8;
+};
+
 const generatePdfReport = (reportData, options = {}) =>
   new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 40 });
@@ -225,68 +267,55 @@ const generatePdfReport = (reportData, options = {}) =>
     doc.moveDown();
 
     if (options.includeTrends !== false) {
-      doc.fontSize(14).text("Summary", { underline: true });
-      doc.fontSize(12);
-      doc.text(`Total Income: €${reportData.totals.totalCredits.toFixed(2)}`);
-      doc.text(`Total Expenses: €${reportData.totals.totalExpenses.toFixed(2)}`);
-      doc.text(`Balance: €${reportData.totals.balance.toFixed(2)}`);
-      doc.moveDown();
+      heading(doc, "Summary");
+      const summaryRows = [
+        ["Total Income", euro(reportData.totals.totalCredits)],
+        ["Total Expenses", euro(reportData.totals.totalExpenses)],
+        ["Balance", euro(reportData.totals.balance)],
+      ];
+      drawTable(doc, ["Metric", "Value"], summaryRows, [300, 215]);
     }
 
-    doc.fontSize(14).text("Expenses", { underline: true });
-    doc.fontSize(11);
-    reportData.expenses.forEach((expense) => {
-      doc.text(
-        `${expense.date} - ${expense.name} (${expense.category}): €${parseFloat(
-          expense.amount
-        ).toFixed(2)}`
-      );
-    });
-
-    if (!reportData.expenses.length) {
-      doc.text("No expenses recorded in this period.");
+    heading(doc, "Expenses");
+    if (reportData.expenses.length) {
+      const expRows = reportData.expenses.map((e) => [e.date, e.name, e.category, euro(e.amount)]);
+      drawTable(doc, ["Date", "Name", "Category", "Amount"], expRows, [90, 235, 110, 80]);
+    } else {
+      doc.fontSize(11).text("No expenses recorded in this period.");
     }
 
-    doc.moveDown();
-    doc.fontSize(14).text("Income", { underline: true });
-    doc.fontSize(11);
-    reportData.credits.forEach((credit) => {
-      doc.text(
-        `${credit.date} - ${credit.name} (${credit.category}): €${parseFloat(
-          credit.amount
-        ).toFixed(2)}`
-      );
-    });
-
-    if (!reportData.credits.length) {
-      doc.text("No income recorded in this period.");
+    heading(doc, "Income");
+    if (reportData.credits.length) {
+      const incRows = reportData.credits.map((c) => [c.date, c.name, c.category, euro(c.amount)]);
+      drawTable(doc, ["Date", "Source", "Category", "Amount"], incRows, [90, 235, 110, 80]);
+    } else {
+      doc.fontSize(11).text("No income recorded in this period.");
     }
 
-    doc.moveDown();
     if (options.includeBudget !== false) {
-      doc.fontSize(14).text("Active Budget Goals", { underline: true });
-      doc.fontSize(11);
-      reportData.budgetGoals.forEach((goal) => {
-        doc.text(`${goal.category}: €${parseFloat(goal.monthly_limit).toFixed(2)}`);
-      });
-      if (!reportData.budgetGoals.length) {
-        doc.text("No active budget goals.");
+      heading(doc, "Active Budget Goals");
+      if (reportData.budgetGoals.length) {
+        const bgRows = reportData.budgetGoals.map((g) => [g.category, parseFloat(g.monthly_limit)]);
+        const bgFmt = bgRows.map((r) => [r[0], euro(r[1])]);
+        drawTable(doc, ["Category", "Monthly Limit"], bgFmt, [350, 165]);
+      } else {
+        doc.fontSize(11).text("No active budget goals.");
       }
     }
 
-    doc.moveDown();
     if (options.includeRecurring !== false) {
-      doc.fontSize(14).text("Active Recurring Transactions", { underline: true });
-      doc.fontSize(11);
-      reportData.recurring.forEach((tx) => {
-        doc.text(
-          `${tx.type.toUpperCase()} - ${tx.name}: €${parseFloat(
-            tx.amount
-          ).toFixed(2)} (${tx.frequency}) next on ${tx.next_run_date}`
-        );
-      });
-      if (!reportData.recurring.length) {
-        doc.text("No active recurring transactions.");
+      heading(doc, "Active Recurring Transactions");
+      if (reportData.recurring.length) {
+        const recRows = reportData.recurring.map((t) => [
+          String(t.type).toUpperCase(),
+          t.name,
+          euro(t.amount),
+          t.frequency,
+          t.next_run_date,
+        ]);
+        drawTable(doc, ["Type", "Name", "Amount", "Frequency", "Next"], recRows, [60, 225, 80, 90, 60]);
+      } else {
+        doc.fontSize(11).text("No active recurring transactions.");
       }
     }
 
