@@ -19,7 +19,7 @@ CREATE TABLE budget_goals (
   id INT AUTO_INCREMENT PRIMARY KEY,
   category VARCHAR(100) NOT NULL,
   monthly_limit DECIMAL(10, 2) NOT NULL,
-  created_date DATE DEFAULT TRUE,
+  created_date DATE DEFAULT (CURRENT_DATE),
   is_active BOOLEAN DEFAULT TRUE
 );
 
@@ -66,6 +66,27 @@ CREATE TABLE IF NOT EXISTS report_schedules (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS expenses (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(120) NOT NULL,
+  amount DECIMAL(10, 2) NOT NULL,
+  date DATE NOT NULL,
+  category VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS credits (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(120) NOT NULL,
+  amount DECIMAL(10, 2) NOT NULL,
+  date DATE NOT NULL,
+  category VARCHAR(100) NOT NULL
+);
+
+CREATE INDEX idx_expenses_date ON expenses(date);
+CREATE INDEX idx_expenses_category ON expenses(category);
+CREATE INDEX idx_credits_date ON credits(date);
+CREATE INDEX idx_credits_category ON credits(category);
 
 
 

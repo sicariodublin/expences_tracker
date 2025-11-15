@@ -15,8 +15,22 @@ const { normalizeBankRows } = require("./utils/csvNormalizer");
 dotenv.config();
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+const allowedOrigins = (process.env.CORS_ORIGIN || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      if (!allowedOrigins.length || allowedOrigins.includes(origin)) {
+        return cb(null, true);
+      }
+      cb(new Error("Not allowed by CORS"));
+    },
+  })
+);
+  app.use(express.json());
 
 // MySQL Connection
 const db = mysql.createConnection({
@@ -63,6 +77,20 @@ if (hasEmailConfig) {
 
 const REPORT_FROM_EMAIL =
   process.env.REPORT_FROM_EMAIL || process.env.SMTP_USER || "reports@tracker";
+
+let emailVerified = false;
+if (mailTransporter) {
+  mailTransporter
+    .verify()
+    .then(() => {
+      emailVerified = true;
+      console.log("SMTP transport verified successfully");
+    })
+    .catch((err) => {
+      emailVerified = false;
+      console.error("SMTP transport verification failed:", err);
+    });
+}
 
 const roundToTwo = (value) =>
   Math.round((Number(value) + Number.EPSILON) * 100) / 100;
@@ -182,7 +210,7 @@ const fetchReportData = async (start, end) => {
   };
 };
 
-const generatePdfReport = (reportData) =>
+const generatePdfReport = (reportData, options = {}) =>
   new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 40 });
     const buffers = [];
@@ -196,12 +224,14 @@ const generatePdfReport = (reportData) =>
     doc.text(`Generated: ${reportData.generatedAt}`);
     doc.moveDown();
 
-    doc.fontSize(14).text("Summary", { underline: true });
-    doc.fontSize(12);
-    doc.text(`Total Income: €${reportData.totals.totalCredits.toFixed(2)}`);
-    doc.text(`Total Expenses: €${reportData.totals.totalExpenses.toFixed(2)}`);
-    doc.text(`Balance: €${reportData.totals.balance.toFixed(2)}`);
-    doc.moveDown();
+    if (options.includeTrends !== false) {
+      doc.fontSize(14).text("Summary", { underline: true });
+      doc.fontSize(12);
+      doc.text(`Total Income: €${reportData.totals.totalCredits.toFixed(2)}`);
+      doc.text(`Total Expenses: €${reportData.totals.totalExpenses.toFixed(2)}`);
+      doc.text(`Balance: €${reportData.totals.balance.toFixed(2)}`);
+      doc.moveDown();
+    }
 
     doc.fontSize(14).text("Expenses", { underline: true });
     doc.fontSize(11);
@@ -233,52 +263,58 @@ const generatePdfReport = (reportData) =>
     }
 
     doc.moveDown();
-    doc.fontSize(14).text("Active Budget Goals", { underline: true });
-    doc.fontSize(11);
-    reportData.budgetGoals.forEach((goal) => {
-      doc.text(`${goal.category}: €${parseFloat(goal.monthly_limit).toFixed(2)}`);
-    });
-    if (!reportData.budgetGoals.length) {
-      doc.text("No active budget goals.");
+    if (options.includeBudget !== false) {
+      doc.fontSize(14).text("Active Budget Goals", { underline: true });
+      doc.fontSize(11);
+      reportData.budgetGoals.forEach((goal) => {
+        doc.text(`${goal.category}: €${parseFloat(goal.monthly_limit).toFixed(2)}`);
+      });
+      if (!reportData.budgetGoals.length) {
+        doc.text("No active budget goals.");
+      }
     }
 
     doc.moveDown();
-    doc.fontSize(14).text("Active Recurring Transactions", { underline: true });
-    doc.fontSize(11);
-    reportData.recurring.forEach((tx) => {
-      doc.text(
-        `${tx.type.toUpperCase()} - ${tx.name}: €${parseFloat(
-          tx.amount
-        ).toFixed(2)} (${tx.frequency}) next on ${tx.next_run_date}`
-      );
-    });
-    if (!reportData.recurring.length) {
-      doc.text("No active recurring transactions.");
+    if (options.includeRecurring !== false) {
+      doc.fontSize(14).text("Active Recurring Transactions", { underline: true });
+      doc.fontSize(11);
+      reportData.recurring.forEach((tx) => {
+        doc.text(
+          `${tx.type.toUpperCase()} - ${tx.name}: €${parseFloat(
+            tx.amount
+          ).toFixed(2)} (${tx.frequency}) next on ${tx.next_run_date}`
+        );
+      });
+      if (!reportData.recurring.length) {
+        doc.text("No active recurring transactions.");
+      }
     }
 
     doc.end();
   });
 
-const generateExcelReport = async (reportData) => {
+const generateExcelReport = async (reportData, options = {}) => {
   const workbook = new ExcelJS.Workbook();
-  const summarySheet = workbook.addWorksheet("Summary");
+  const summarySheet = options.includeTrends !== false ? workbook.addWorksheet("Summary") : null;
   const expensesSheet = workbook.addWorksheet("Expenses");
   const incomeSheet = workbook.addWorksheet("Income");
-  const recurringSheet = workbook.addWorksheet("Recurring");
+  const recurringSheet = options.includeRecurring !== false ? workbook.addWorksheet("Recurring") : null;
+  const budgetSheet = options.includeBudget !== false ? workbook.addWorksheet("Budget") : null;
 
-  summarySheet.columns = [
-    { header: "Metric", key: "metric", width: 30 },
-    { header: "Value", key: "value", width: 20 },
-  ];
-
-  summarySheet.addRows([
-    { metric: "Period Start", value: reportData.startDate },
-    { metric: "Period End", value: reportData.endDate },
-    { metric: "Generated At", value: reportData.generatedAt },
-    { metric: "Total Income", value: reportData.totals.totalCredits },
-    { metric: "Total Expenses", value: reportData.totals.totalExpenses },
-    { metric: "Balance", value: reportData.totals.balance },
-  ]);
+  if (summarySheet) {
+    summarySheet.columns = [
+      { header: "Metric", key: "metric", width: 30 },
+      { header: "Value", key: "value", width: 20 },
+    ];
+    summarySheet.addRows([
+      { metric: "Period Start", value: reportData.startDate },
+      { metric: "Period End", value: reportData.endDate },
+      { metric: "Generated At", value: reportData.generatedAt },
+      { metric: "Total Income", value: reportData.totals.totalCredits },
+      { metric: "Total Expenses", value: reportData.totals.totalExpenses },
+      { metric: "Balance", value: reportData.totals.balance },
+    ]);
+  }
 
   const addSheetData = (sheet, rows) => {
     if (!rows.length) {
@@ -295,7 +331,22 @@ const generateExcelReport = async (reportData) => {
 
   addSheetData(expensesSheet, reportData.expenses);
   addSheetData(incomeSheet, reportData.credits);
-  addSheetData(recurringSheet, reportData.recurring);
+  if (recurringSheet) addSheetData(recurringSheet, reportData.recurring);
+  if (budgetSheet) {
+    budgetSheet.columns = [
+      { header: "Category", key: "category", width: 30 },
+      { header: "Monthly Limit", key: "monthly_limit", width: 20 },
+    ];
+    reportData.budgetGoals.forEach((goal) =>
+      budgetSheet.addRow({
+        category: goal.category,
+        monthly_limit: parseFloat(goal.monthly_limit),
+      })
+    );
+    if (!reportData.budgetGoals.length) {
+      budgetSheet.addRow(["No active budget goals"]);
+    }
+  }
 
   return workbook.xlsx.writeBuffer();
 };
@@ -337,82 +388,141 @@ const processRecurringTransactions = async () => {
   }
 };
 
-const sendScheduledReports = async () => {
-  if (!mailTransporter) {
-    return;
-  }
+const scheduleTasks = new Map();
+const SEND_TIME = (process.env.REPORT_SEND_TIME || "06:15").split(":");
+const SEND_HOUR = Number(SEND_TIME[0]);
+const SEND_MINUTE = Number(SEND_TIME[1]);
 
+const sendScheduledReport = async (scheduleId) => {
+  if (!mailTransporter || !emailVerified) return;
+  const [[schedule]] = await query(
+    "SELECT * FROM report_schedules WHERE id = ? AND is_active = TRUE",
+    [scheduleId]
+  );
+  if (!schedule) return;
   try {
-    const today = dayjs().startOf("day");
-    const [schedules] = await query(
-      "SELECT * FROM report_schedules WHERE is_active = TRUE AND next_send_date <= ?",
-      [today.format("YYYY-MM-DD")]
+    const isWeekly = schedule.frequency === "weekly";
+    const rangeStart = isWeekly
+      ? dayjs().subtract(1, "week").startOf("week")
+      : dayjs().subtract(1, "month").startOf("month");
+    const rangeEnd = isWeekly
+      ? dayjs().subtract(1, "week").endOf("week")
+      : dayjs().subtract(1, "month").endOf("month");
+    const reportData = await fetchReportData(rangeStart, rangeEnd);
+
+    const isExcel = schedule.format === "excel";
+    const buffer = isExcel
+      ? await generateExcelReport(reportData, {
+          includeBudget: schedule.include_budget_overview,
+          includeTrends: schedule.include_trends,
+          includeRecurring: schedule.include_recurring,
+        })
+      : await generatePdfReport(reportData, {
+          includeBudget: schedule.include_budget_overview,
+          includeTrends: schedule.include_trends,
+          includeRecurring: schedule.include_recurring,
+        });
+
+    const extension = isExcel ? "xlsx" : "pdf";
+    const filenameBase = isWeekly
+      ? `week-${rangeStart.format("YYYY-MM-DD")}`
+      : rangeStart.format("YYYY-MM");
+    const filename = `expense-report-${filenameBase}.${extension}`;
+
+    await mailTransporter.sendMail({
+      from: REPORT_FROM_EMAIL,
+      to: schedule.recipient_email,
+      subject: isWeekly
+        ? `Expense Tracker Summary - Week of ${rangeStart.format("MMM D, YYYY")}`
+        : `Expense Tracker Summary - ${rangeStart.format("MMMM YYYY")}`,
+      text: `Attached is your scheduled ${schedule.format.toUpperCase()} report.`,
+      attachments: [{ filename, content: buffer }],
+    });
+
+    const nextSend = isWeekly
+      ? dayjs(schedule.next_send_date).add(1, "week")
+      : dayjs(schedule.next_send_date).add(1, "month");
+
+    await query(
+      "UPDATE report_schedules SET last_sent_at = ?, next_send_date = ? WHERE id = ?",
+      [dayjs().format("YYYY-MM-DD HH:mm:ss"), nextSend.format("YYYY-MM-DD"), schedule.id]
     );
 
-    if (!schedules.length) {
-      return;
-    }
-
-    const previousMonthStart = dayjs().subtract(1, "month").startOf("month");
-    const previousMonthEnd = dayjs().subtract(1, "month").endOf("month");
-
-    for (const schedule of schedules) {
-      const reportData = await fetchReportData(
-        previousMonthStart,
-        previousMonthEnd
-      );
-
-      const isExcel = schedule.format === "excel";
-      const buffer = isExcel
-        ? await generateExcelReport(reportData)
-        : await generatePdfReport(reportData);
-
-      const extension = isExcel ? "xlsx" : "pdf";
-      const filename = `expense-report-${previousMonthStart.format(
-        "YYYY-MM"
-      )}.${extension}`;
-
-      await mailTransporter.sendMail({
-        from: REPORT_FROM_EMAIL,
-        to: schedule.recipient_email,
-        subject: `Expense Tracker Summary - ${previousMonthStart.format(
-          "MMMM YYYY"
-        )}`,
-        text: `Attached is your scheduled ${schedule.format.toUpperCase()} report.`,
-        attachments: [
-          {
-            filename,
-            content: buffer,
-          },
-        ],
-      });
-
-      const nextSend =
-        schedule.frequency === "weekly"
-          ? dayjs(schedule.next_send_date).add(7, "day")
-          : dayjs(schedule.next_send_date).add(1, "month");
-
-      await query(
-        "UPDATE report_schedules SET last_sent_at = ?, next_send_date = ? WHERE id = ?",
-        [
-          dayjs().format("YYYY-MM-DD HH:mm:ss"),
-          nextSend.format("YYYY-MM-DD"),
-          schedule.id,
-        ]
-      );
-    }
+    const updated = { ...schedule, next_send_date: nextSend.format("YYYY-MM-DD") };
+    scheduleReportJob(updated);
   } catch (error) {
-    console.error("Error sending scheduled reports:", error);
+    console.error("Error sending scheduled report:", error);
   }
 };
 
-// Kick off recurring tasks once on startup
-processRecurringTransactions();
-sendScheduledReports();
+const scheduleReportJob = (schedule) => {
+  const existing = scheduleTasks.get(schedule.id);
+  if (existing) existing.stop();
+  const baseDate = dayjs(schedule.next_send_date);
+  const expr = schedule.frequency === "weekly"
+    ? `${SEND_MINUTE} ${SEND_HOUR} * * ${baseDate.day()}`
+    : `${SEND_MINUTE} ${SEND_HOUR} ${baseDate.date()} * *`;
+  const job = cron.schedule(expr, () => sendScheduledReport(schedule.id));
+  scheduleTasks.set(schedule.id, job);
+};
 
-// Schedule cron jobs
+const initScheduleJobs = async () => {
+  const [rows] = await query(
+    "SELECT * FROM report_schedules WHERE is_active = TRUE"
+  );
+  rows.forEach(scheduleReportJob);
+};
+
+processRecurringTransactions();
 cron.schedule("5 3 * * *", processRecurringTransactions);
-cron.schedule("15 6 * * *", sendScheduledReports);
+initScheduleJobs();
+
+app.get("/api/health", async (req, res, next) => {
+  try {
+    let dbOk = false;
+    try {
+      await db.promise().query("SELECT 1");
+      dbOk = true;
+    } catch (_) {
+      dbOk = false;
+    }
+    res.json({ status: "ok", database: dbOk, emailConfigured: !!mailTransporter, emailVerified });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get("/api/email/status", (req, res) => {
+  res.json({
+    configured: !!mailTransporter,
+    verified: emailVerified,
+    host: process.env.SMTP_HOST || null,
+    port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : null,
+    userPresent: !!process.env.SMTP_USER,
+  });
+});
+
+app.post("/api/email/test", async (req, res) => {
+  try {
+    if (!mailTransporter) {
+      return res.status(400).json({ error: "Email not configured" });
+    }
+    const to = req.body?.to;
+    if (!to) {
+      return res.status(400).json({ error: "Recipient 'to' is required" });
+    }
+    const info = await mailTransporter.sendMail({
+      from: REPORT_FROM_EMAIL,
+      to,
+      subject: "Expense Tracker Email Test",
+      text: "This is a test email from Expense Tracker backend.",
+    });
+    res.json({ message: "Test email sent", id: info.messageId });
+  } catch (err) {
+    console.error("Error sending test email:", err);
+    res.status(500).json({ error: "Failed to send test email" });
+  }
+});
 
 // Add Expense
 app.post("/api/expenses", (req, res) => {
@@ -1112,7 +1222,11 @@ app.post("/api/report-schedules", async (req, res) => {
         initialSendDate.format("YYYY-MM-DD"),
       ]
     );
-
+    const [[row]] = await query(
+      "SELECT * FROM report_schedules WHERE id = ?",
+      [result.insertId]
+    );
+    scheduleReportJob(row);
     res.status(201).json({ id: result.insertId });
   } catch (error) {
     console.error("Error creating report schedule:", error);
@@ -1150,7 +1264,11 @@ app.put("/api/report-schedules/:id", async (req, res) => {
         id,
       ]
     );
-
+    const [[row]] = await query(
+      "SELECT * FROM report_schedules WHERE id = ?",
+      [id]
+    );
+    if (row) scheduleReportJob(row);
     res.json({ message: "Report schedule updated" });
   } catch (error) {
     console.error("Error updating report schedule:", error);
@@ -1172,7 +1290,7 @@ app.delete("/api/report-schedules/:id", async (req, res) => {
 // CSV Upload (Import)
 const upload = multer({ dest: "uploads/" });
 
-app.post("/api/upload", upload.single("file"), (req, res) => {
+app.post("/api/upload", upload.single("file"), (req, res, next) => {
   const filePath = req.file.path;
   const rows = [];
 
@@ -1186,39 +1304,77 @@ app.post("/api/upload", upload.single("file"), (req, res) => {
     .on("data", (data) => {
       rows.push(data);
     })
-    .on("end", () => {
+    .on("end", async () => {
       const normalized = normalizeBankRows(rows);
+      const dryRun = String(req.query.dryRun || "").toLowerCase() === "true";
 
       let expensesCount = 0;
       let incomeCount = 0;
+      let duplicates = 0;
 
-      normalized.forEach((item) => {
-        const name = item.name || "Unnamed";
-        const amount = item.amount || 0;
-        const date = item.date;
-        const category = item.category || (item.type === "income" ? "Income" : "Uncategorized");
+      if (dryRun) {
+        fs.unlinkSync(filePath);
+        const exp = normalized.filter((i) => i.type !== "income").length;
+        const inc = normalized.filter((i) => i.type === "income").length;
+        return res.status(200).json({
+          message: "Dry run completed",
+          imported: normalized.length,
+          expenses: exp,
+          incomes: inc,
+          duplicates: 0,
+        });
+      }
 
-        if (item.type === "income") {
-          const q = "INSERT INTO credits (name, amount, date, category) VALUES (?, ?, ?, ?)";
-          db.query(q, [name, amount, date, category], (err) => {
-            if (err) console.error("Error inserting credit:", err);
-          });
-          incomeCount += 1;
-        } else {
-          const q = "INSERT INTO expenses (name, amount, date, category) VALUES (?, ?, ?, ?)";
-          db.query(q, [name, amount, date, category], (err) => {
-            if (err) console.error("Error inserting expense:", err);
-          });
-          expensesCount += 1;
+      try {
+        await db.promise().beginTransaction();
+        for (const item of normalized) {
+          const name = item.name || "Unnamed";
+          const amount = item.amount || 0;
+          const date = item.date;
+          const category = item.category || (item.type === "income" ? "Income" : "Uncategorized");
+          const table = item.type === "income" ? "credits" : "expenses";
+
+          const [existing] = await db
+            .promise()
+            .query(
+              `SELECT id FROM ${table} WHERE name = ? AND amount = ? AND date = ? LIMIT 1`,
+              [name, amount, date]
+            );
+          if (existing.length) {
+            duplicates += 1;
+            continue;
+          }
+
+          await db
+            .promise()
+            .query(
+              `INSERT INTO ${table} (name, amount, date, category) VALUES (?, ?, ?, ?)`,
+              [name, amount, date, category]
+            );
+
+          if (item.type === "income") {
+            incomeCount += 1;
+          } else {
+            expensesCount += 1;
+          }
         }
-      });
+        await db.promise().commit();
+      } catch (err) {
+        try {
+          await db.promise().rollback();
+        } catch (_) {}
+        console.error("Error importing CSV:", err);
+        fs.unlinkSync(filePath);
+        return next(err);
+      }
 
       fs.unlinkSync(filePath);
       res.status(200).json({
         message: "Import completed",
-        imported: normalized.length,
+        imported: normalized.length - duplicates,
         expenses: expensesCount,
         incomes: incomeCount,
+        duplicates,
       });
     });
 });
@@ -1226,4 +1382,8 @@ app.post("/api/upload", upload.single("file"), (req, res) => {
 // Start Server
 app.listen(5000, () => {
   console.log("Server running on port 5000");
+});
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err);
+  res.status(500).json({ error: "Internal server error" });
 });
