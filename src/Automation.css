@@ -11,6 +11,11 @@
   margin-bottom: 18px;
 }
 
+.export-form label input,
+.export-form label select {
+  margin-left: 8px;
+}
+
 .automation-card input,
 .automation-card select {
   border-radius: var(--radius-sm);

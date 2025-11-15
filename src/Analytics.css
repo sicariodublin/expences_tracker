@@ -32,9 +32,10 @@
 }
 
 .control-group .form-label {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--color-muted);
   font-weight: 600;
+  margin-left: 5px;
 }
 
 .analytics-summary {

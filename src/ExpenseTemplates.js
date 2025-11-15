@@ -5,13 +5,14 @@ import { formatCurrency } from "./utils/format";
 const DEFAULT_TEMPLATES = [
   { name: "Coffee", amount: 3.5, category: "Eating Out", icon: "☕" },
   { name: "Lunch", amount: 12, category: "Eating Out", icon: "🥗" },
-  { name: "Fuel", amount: 60, category: "Carro", icon: "⛽" },
+  { name: "Fuel", amount: 50, category: "Carro", icon: "⛽" },
   { name: "Groceries", amount: 45, category: "Groceries", icon: "🛒" },
-  { name: "Gym Membership", amount: 35, category: "Gym", icon: "🏋️" },
+  { name: "Gym Member", amount: 36, category: "Gym", icon: "🏋️" },
   { name: "Streaming", amount: 15.99, category: "Entertainment", icon: "🎬" },
-  { name: "Ride Share", amount: 8.5, category: "Transport", icon: "🚗" },
-  { name: "Healthcare", amount: 25, category: "Healthcare", icon: "💊" },
+  { name: "Train", amount: 13, category: "Transport", icon: "🚆" },
+  { name: "Hair Cut", amount: 25, category: "Self-Care", icon: "💇‍♀️" },
   { name: "Pizza Night", amount: 17, category: "Eating Out", icon: "🍕" },
+  { name: "Massage", amount: 60, category: "Self-Care", icon: "💆" },
 ];
 
 const today = () => new Date().toISOString().split("T")[0];
@@ -23,20 +24,36 @@ const ExpenseTemplates = ({ onAddExpense, categories }) => {
     amount: "",
     category: "",
   });
+  const [editingTemplate, setEditingTemplate] = useState(null);
+  const [editingAmount, setEditingAmount] = useState("");
 
   const templates = useMemo(() => DEFAULT_TEMPLATES, []);
 
-  const handleTemplateClick = (template) => {
-    if (!onAddExpense) {
+  const openEdit = (template) => {
+    setEditingTemplate(template);
+    setEditingAmount(String(template.amount));
+  };
+
+  const confirmTemplateAdd = () => {
+    if (!editingTemplate || !onAddExpense) return;
+    const amt = parseFloat(editingAmount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      alert("Please enter a valid amount.");
       return;
     }
-
     onAddExpense({
-      name: template.name,
-      amount: template.amount.toString(),
+      name: editingTemplate.name,
+      amount: String(amt),
       date: today(),
-      category: template.category,
+      category: editingTemplate.category,
     });
+    setEditingTemplate(null);
+    setEditingAmount("");
+  };
+
+  const cancelTemplateEdit = () => {
+    setEditingTemplate(null);
+    setEditingAmount("");
   };
 
   const handleCustomSubmit = () => {
@@ -78,11 +95,9 @@ const ExpenseTemplates = ({ onAddExpense, categories }) => {
 
       <div className="templates-grid">
         {templates.map((template) => (
-          <button
-            type="button"
+          <div
             key={template.name}
             className="template-btn"
-            onClick={() => handleTemplateClick(template)}
           >
             <span className="template-icon" aria-hidden="true">
               {template.icon}
@@ -90,11 +105,52 @@ const ExpenseTemplates = ({ onAddExpense, categories }) => {
             <span className="template-info">
               <span className="template-name">{template.name}</span>
               <span className="template-category">{template.category}</span>
-              <span className="template-amount">
-                {formatCurrency(template.amount)}
-              </span>
+              {editingTemplate && editingTemplate.name === template.name ? (
+                <span className="template-amount">
+                  <input
+                    type="number"
+                    value={editingAmount}
+                    onChange={(e) => setEditingAmount(e.target.value)}
+                    step="0.01"
+                    min="0"
+                    className="form-input"
+                    style={{ maxWidth: 120 }}
+                  />
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={confirmTemplateAdd}
+                    >
+                      Add
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={cancelTemplateEdit}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </span>
+              ) : (
+                <span className="template-amount">
+                  {formatCurrency(template.amount)}
+                </span>
+              )}
             </span>
-          </button>
+            {(!editingTemplate || editingTemplate.name !== template.name) && (
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                style={{ marginLeft: "auto" }}
+                onClick={() => openEdit(template)}
+                aria-label={`Edit amount for ${template.name}`}
+              >
+                ✏️
+              </button>
+            )}
+          </div>
         ))}
       </div>
 
