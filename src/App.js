@@ -98,6 +98,11 @@ function App() {
 
   const categories = EXPENSE_CATEGORIES;
 
+  // Edit modal state for inline category/name fixes
+  const [editTarget, setEditTarget] = useState(null); // { type: 'expense'|'credit', record }
+  const [editName, setEditName] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+
   useEffect(() => {
     const root = document.documentElement;
     root.classList.toggle("dark", darkMode);
@@ -414,6 +419,45 @@ function App() {
     } catch (error) {
       console.error("Error deleting expense:", error);
       alert("Could not delete the expense. Please try again.");
+    }
+  };
+
+  const openEdit = (record, type) => {
+    setEditTarget({ type, record });
+    setEditName(record.name || "");
+    setEditCategory(record.category || "");
+  };
+
+  const closeEdit = () => {
+    setEditTarget(null);
+    setEditName("");
+    setEditCategory("");
+  };
+
+  const saveEdit = async () => {
+    if (!editTarget) return;
+    const { type, record } = editTarget;
+    try {
+      const payload = {};
+      if (editName && editName !== record.name) payload.name = editName;
+      if (editCategory && editCategory !== record.category)
+        payload.category = editCategory;
+      if (!Object.keys(payload).length) {
+        closeEdit();
+        return;
+      }
+      if (type === "expense") {
+        await apiClient.put(`/expenses/${record.id}`, payload);
+        await fetchExpenses();
+      } else {
+        await apiClient.put(`/credits/${record.id}`, payload);
+        await fetchCredits();
+      }
+    } catch (error) {
+      console.error("Error saving edit:", error);
+      alert("Could not save changes. Please try again.");
+    } finally {
+      closeEdit();
     }
   };
 
@@ -789,6 +833,13 @@ function App() {
                     <td>
                       <button
                         type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => openEdit(expense, "expense")}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
                         className="btn btn-danger btn-sm"
                         onClick={() => deleteExpense(expense.id)}
                       >
@@ -843,6 +894,13 @@ function App() {
                       </span>
                     </td>
                     <td>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => openEdit(credit, "credit")}
+                      >
+                        Edit
+                      </button>
                       <button
                         type="button"
                         className="btn btn-danger btn-sm"
@@ -944,6 +1002,58 @@ function App() {
                   Add expenses or credits to view the category breakdown.
                 </p>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editTarget && (
+        <div className="modal-overlay" onClick={closeEdit}>
+          <div className="modal-content" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Edit {editTarget.type === "expense" ? "Expense" : "Income"}</h2>
+              <button
+                type="button"
+                onClick={closeEdit}
+                className="modal-close"
+                aria-label="Close edit modal"
+              >
+                ×
+              </button>
+            </div>
+            <div className="form-grid">
+              <div className="form-group">
+                <label className="form-label">Name</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Category</label>
+                <select
+                  className="form-select"
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value)}
+                >
+                  <option value="">Select a category</option>
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="form-actions">
+              <button type="button" className="btn btn-primary" onClick={saveEdit}>
+                Save Changes
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={closeEdit}>
+                Cancel
+              </button>
             </div>
           </div>
         </div>
