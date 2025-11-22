@@ -147,6 +147,33 @@
   margin-bottom: 20px;
 }
 
+.email-status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border: 1px dashed rgba(37, 99, 235, 0.35);
+  border-radius: var(--radius-md);
+  background: rgba(37, 99, 235, 0.06);
+  margin-bottom: 16px;
+}
+
+.email-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.email-details {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
 .export-form,
 .schedule-form {
   display: flex;

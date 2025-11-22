@@ -80,6 +80,12 @@ const downloadBlob = (blob, filename) => {
 };
 
 const Automation = () => {
+  const [authMode, setAuthMode] = useState("login");
+  const [authUsername, setAuthUsername] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authRepeat, setAuthRepeat] = useState("");
+  const [isAuthBusy, setAuthBusy] = useState(false);
+  const [profile, setProfile] = useState({ first_name: "", last_name: "", date_of_birth: "", currency: "EUR", bank: "", avatar_url: "" });
   const [expectedIncomes, setExpectedIncomes] = useState([]);
   const [newIncome, setNewIncome] = useState(emptyIncome);
   const [editingIncome, setEditingIncome] = useState(null);
@@ -98,10 +104,106 @@ const Automation = () => {
 
   const [reportSchedules, setReportSchedules] = useState([]);
   const [newSchedule, setNewSchedule] = useState(emptySchedule);
+  const [emailStatus, setEmailStatus] = useState(null);
+  const [isEmailLoading, setEmailLoading] = useState(false);
+  const [testEmail, setTestEmail] = useState("");
+  const [isSendingTest, setSendingTest] = useState(false);
+  const [sendingScheduleId, setSendingScheduleId] = useState(null);
+
+  const [emailProvider, setEmailProvider] = useState("");
+  const [smtpHost, setSmtpHost] = useState("");
+  const [smtpPort, setSmtpPort] = useState(587);
+  const [smtpUser, setSmtpUser] = useState("");
+  const [smtpPass, setSmtpPass] = useState("");
+  const [sendgridKey, setSendgridKey] = useState("");
+  const [fromEmail, setFromEmail] = useState("");
+
+  const fetchEmailSettings = async () => {
+    try {
+      const { data } = await apiClient.get("/email/settings");
+      setEmailProvider(data?.provider || "");
+      setSmtpHost(data?.smtp_host || "");
+      setSmtpPort(data?.smtp_port || 587);
+      setSmtpUser(data?.smtp_user || "");
+      setFromEmail(data?.from_email || "");
+    } catch (_) {}
+  };
+
+  const saveEmailSettings = async () => {
+    try {
+      const payload = {
+        provider: emailProvider,
+        smtp_host: smtpHost,
+        smtp_port: smtpPort,
+        smtp_user: smtpUser,
+        smtp_pass: smtpPass || undefined,
+        api_key: sendgridKey || undefined,
+        from_email: fromEmail,
+      };
+      await apiClient.put("/email/settings", payload);
+      alert("Email settings saved");
+      fetchEmailStatus();
+    } catch (error) {
+      console.error("Save email settings error", error);
+      alert("Failed to save email settings");
+    }
+  };
 
   const loadExpectedIncomes = async () => {
     const { data } = await apiClient.get("/expected-incomes");
     setExpectedIncomes(data);
+  };
+
+  const handleAuthSubmit = async (e) => {
+    e.preventDefault();
+    setAuthBusy(true);
+    try {
+      if (authMode === "register") {
+        if (!authUsername || !authPassword || authPassword !== authRepeat) {
+          alert("Fill username/password and ensure passwords match.");
+          return;
+        }
+        const { data } = await apiClient.post("/auth/register", { username: authUsername, password: authPassword });
+        localStorage.setItem("auth_token", data.token);
+        setAuthMode("login");
+      } else {
+        const { data } = await apiClient.post("/auth/login", { username: authUsername, password: authPassword });
+        localStorage.setItem("auth_token", data.token);
+        await fetchProfile();
+        await fetchEmailSettings();
+        fetchEmailStatus();
+        loadReportSchedules();
+      }
+    } catch (error) {
+      console.error("Auth error", error);
+      alert("Authentication failed");
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const fetchProfile = async () => {
+    try {
+      const { data } = await apiClient.get("/profile");
+      setProfile({
+        first_name: data?.first_name || "",
+        last_name: data?.last_name || "",
+        date_of_birth: data?.date_of_birth || "",
+        currency: data?.currency || "EUR",
+        bank: data?.bank || "",
+        avatar_url: data?.avatar_url || "",
+      });
+    } catch (_) {}
+  };
+
+  const saveProfile = async () => {
+    try {
+      await apiClient.put("/profile", profile);
+      alert("Profile saved");
+    } catch (error) {
+      console.error("Profile save error", error);
+      alert("Failed to save profile");
+    }
   };
 
   const loadRecurringTransactions = async () => {
@@ -112,6 +214,56 @@ const Automation = () => {
   const loadReportSchedules = async () => {
     const { data } = await apiClient.get("/report-schedules");
     setReportSchedules(data);
+  };
+
+  const fetchEmailStatus = async () => {
+    setEmailLoading(true);
+    try {
+      const { data } = await apiClient.get("/email/status");
+      setEmailStatus(data);
+    } catch (error) {
+      console.error("Failed to fetch email status", error);
+      setEmailStatus({ configured: false, verified: false, error: "Unable to fetch status" });
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  const sendTestEmail = async () => {
+    if (!testEmail) {
+      alert("Enter a recipient email for the test.");
+      return;
+    }
+    setSendingTest(true);
+    try {
+      const { data } = await apiClient.post("/email/test", { to: testEmail });
+      if (data && data.previewUrl) {
+        alert(`Test email sent. Preview: ${data.previewUrl}`);
+        window.open(data.previewUrl, "_blank");
+      } else {
+        alert("Test email triggered. Check your inbox.");
+      }
+    } catch (error) {
+      console.error("Failed to send test email", error);
+      alert("Unable to send test email. Check server logs and configuration.");
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
+  const sendScheduleNow = async (id) => {
+    setSendingScheduleId(id);
+    try {
+      await apiClient.post(`/report-schedules/${id}/send-now`);
+      alert("Report sent.");
+      loadReportSchedules();
+      fetchEmailStatus();
+    } catch (error) {
+      console.error("Failed to send report now", error);
+      alert("Unable to send report now. Ensure email is verified and check logs.");
+    } finally {
+      setSendingScheduleId(null);
+    }
   };
 
   const loadReconciliation = useCallback(
@@ -134,7 +286,13 @@ const Automation = () => {
   useEffect(() => {
     loadExpectedIncomes();
     loadRecurringTransactions();
-    loadReportSchedules();
+    fetchEmailStatus();
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      fetchProfile();
+      fetchEmailSettings();
+      loadReportSchedules();
+    }
   }, []);
 
   useEffect(() => {
@@ -284,6 +442,37 @@ const Automation = () => {
 
   return (
     <div className="automation-container">
+      <section className="card automation-card">
+        <div className="card-header">
+          <h2>Account</h2>
+        </div>
+        <form className="grid-form" onSubmit={handleAuthSubmit}>
+          <select value={authMode} onChange={(e) => setAuthMode(e.target.value)}>
+            <option value="login">Login</option>
+            <option value="register">Create account</option>
+          </select>
+          <input type="text" placeholder="Username" value={authUsername} onChange={(e) => setAuthUsername(e.target.value)} />
+          <input type="password" placeholder="Password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} />
+          {authMode === "register" && (
+            <input type="password" placeholder="Repeat password" value={authRepeat} onChange={(e) => setAuthRepeat(e.target.value)} />
+          )}
+          <div className="form-actions">
+            <button type="submit" className="btn btn-primary" disabled={isAuthBusy}>{authMode === "register" ? "Create account" : "Login"}</button>
+            <button type="button" className="btn btn-ghost" onClick={() => { setAuthUsername(""); setAuthPassword(""); setAuthRepeat(""); }}>Clear</button>
+          </div>
+        </form>
+        <div className="grid-form">
+          <input type="text" placeholder="First name" value={profile.first_name} onChange={(e) => setProfile((p) => ({ ...p, first_name: e.target.value }))} />
+          <input type="text" placeholder="Last name" value={profile.last_name} onChange={(e) => setProfile((p) => ({ ...p, last_name: e.target.value }))} />
+          <input type="date" placeholder="Date of birth" value={profile.date_of_birth} onChange={(e) => setProfile((p) => ({ ...p, date_of_birth: e.target.value }))} />
+          <input type="text" placeholder="Currency" value={profile.currency} onChange={(e) => setProfile((p) => ({ ...p, currency: e.target.value }))} />
+          <input type="text" placeholder="Bank" value={profile.bank} onChange={(e) => setProfile((p) => ({ ...p, bank: e.target.value }))} />
+          <input type="url" placeholder="Avatar URL" value={profile.avatar_url} onChange={(e) => setProfile((p) => ({ ...p, avatar_url: e.target.value }))} />
+          <div className="form-actions">
+            <button type="button" className="btn btn-secondary" onClick={saveProfile}>Save Profile</button>
+          </div>
+        </div>
+      </section>
       <section className="card automation-card">
         <div className="card-header">
           <h2>Expected Income</h2>
@@ -662,7 +851,84 @@ const Automation = () => {
 
       <section className="card automation-card">
         <div className="card-header">
+          <h2>Email Settings</h2>
+        </div>
+        <div className="grid-form">
+          <label>
+            Provider
+            <select>
+              <option value="">Select...</option>
+              <option value="sendgrid">SendGrid</option>
+              <option value="outlook">Outlook</option>
+              <option value="smtp">Generic SMTP</option>
+            </select>
+          </label>
+          <label>
+            From Email
+            <input type="email" />
+          </label>
+          <label>
+            SendGrid API Key
+            <input type="password" />
+          </label>
+          <label>
+            SMTP Host
+            <input type="text" />
+          </label>
+          <label>
+            SMTP Port
+            <input type="number" />
+          </label>
+          <label>
+            SMTP User
+            <input type="text" />
+          </label>
+          <label>
+            SMTP Password / App Password
+            <input type="password" />
+          </label>
+        </div>
+      </section>
+
+      <section className="card automation-card">
+        <div className="card-header">
           <h2>Reports & Scheduling</h2>
+        </div>
+        <div className="email-status-bar">
+          <div>
+            <strong>Email Status:</strong>
+            {isEmailLoading ? (
+              <span className="loading-state"> Checking...</span>
+            ) : emailStatus ? (
+              <span>
+                {emailStatus.verified ? "Verified" : "Not verified"} {emailStatus.configured ? "(configured)" : "(not configured)"}
+              </span>
+            ) : (
+              <span>Unknown</span>
+            )}
+          </div>
+          <div className="email-actions">
+            <button type="button" className="btn btn-outline btn-sm" onClick={fetchEmailStatus}>
+              Refresh status
+            </button>
+            <input
+              type="email"
+              placeholder="Send test to..."
+              value={testEmail}
+              onChange={(e) => setTestEmail(e.target.value)}
+              style={{ maxWidth: 240 }}
+            />
+            <button type="button" className="btn btn-primary btn-sm" onClick={sendTestEmail} disabled={isSendingTest}>
+              {isSendingTest ? "Sending..." : "Send test"}
+            </button>
+          </div>
+          {emailStatus && emailStatus.transport && (
+            <div className="email-details">
+              <span>Host: {emailStatus.transport.host}</span>
+              <span>Port: {emailStatus.transport.port}</span>
+              <span>Secure: {String(emailStatus.transport.secure)}</span>
+            </div>
+          )}
         </div>
         <div className="report-grid">
           <form className="export-form" onSubmit={handleExport}>
@@ -785,6 +1051,7 @@ const Automation = () => {
                 <th>Next Send</th>
                 <th>Status</th>
                 <th></th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -802,6 +1069,16 @@ const Automation = () => {
                       onClick={() => handleScheduleDelete(schedule.id)}
                     >
                       Delete
+                    </button>
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={() => sendScheduleNow(schedule.id)}
+                      disabled={sendingScheduleId === schedule.id}
+                    >
+                      {sendingScheduleId === schedule.id ? "Sending..." : "Send now"}
                     </button>
                   </td>
                 </tr>
