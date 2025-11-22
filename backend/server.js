@@ -10,6 +10,7 @@ const ExcelJS = require("exceljs");
 const nodemailer = require("nodemailer");
 const cron = require("node-cron");
 const dayjs = require("dayjs");
+const crypto = require("crypto");
 const { normalizeBankRows } = require("./utils/csvNormalizer");
 
 dotenv.config();
@@ -30,7 +31,85 @@ app.use(
     },
   })
 );
-  app.use(express.json());
+app.use(express.json());
+
+const JWT_SECRET = process.env.JWT_SECRET || "change-me-secret";
+const EMAIL_SECRET_KEY = process.env.EMAIL_SECRET_KEY || null;
+
+const toB64Url = (buf) => Buffer.from(buf).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+const fromB64Url = (str) => Buffer.from(str.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+
+const signJwt = (payload) => {
+  const header = toB64Url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const body = toB64Url(JSON.stringify(payload));
+  const sig = toB64Url(
+    crypto.createHmac("sha256", JWT_SECRET).update(`${header}.${body}`).digest()
+  );
+  return `${header}.${body}.${sig}`;
+};
+
+const verifyJwt = (token) => {
+  try {
+    const [h, b, s] = token.split(".");
+    const expected = toB64Url(
+      crypto.createHmac("sha256", JWT_SECRET).update(`${h}.${b}`).digest()
+    );
+    if (expected !== s) return null;
+    return JSON.parse(fromB64Url(b).toString("utf8"));
+  } catch (_) {
+    return null;
+  }
+};
+
+const hashPassword = (password, salt = crypto.randomBytes(16).toString("hex")) => {
+  const hash = crypto.pbkdf2Sync(password, salt, 100000, 32, "sha256").toString("hex");
+  return `${salt}:${hash}`;
+};
+
+const verifyPassword = (password, stored) => {
+  const [salt, hash] = String(stored).split(":");
+  const candidate = crypto.pbkdf2Sync(password, salt, 100000, 32, "sha256").toString("hex");
+  return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(candidate, "hex"));
+};
+
+const encryptSecret = (plain) => {
+  if (!EMAIL_SECRET_KEY) return plain;
+  const key = crypto.createHash("sha256").update(EMAIL_SECRET_KEY).digest();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+  const enc = Buffer.concat([cipher.update(String(plain), "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([iv, tag, enc]).toString("base64");
+};
+
+const decryptSecret = (blob) => {
+  if (!EMAIL_SECRET_KEY) return blob;
+  try {
+    const buf = Buffer.from(blob, "base64");
+    const iv = buf.slice(0, 12);
+    const tag = buf.slice(12, 28);
+    const enc = buf.slice(28);
+    const key = crypto.createHash("sha256").update(EMAIL_SECRET_KEY).digest();
+    const dec = crypto.createDecipheriv("aes-256-gcm", key, iv);
+    dec.setAuthTag(tag);
+    const out = Buffer.concat([dec.update(enc), dec.final()]).toString("utf8");
+    return out;
+  } catch (_) {
+    return null;
+  }
+};
+
+const authMiddleware = (req, res, next) => {
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
+  const payload = verifyJwt(token);
+  if (!payload || !payload.userId) return res.status(401).json({ error: "Invalid token" });
+  req.userId = payload.userId;
+  next();
+};
+
+
 
 // MySQL Connection
 const db = mysql.createConnection({
@@ -51,13 +130,57 @@ db.connect((err) => {
 
 const query = (sql, params = []) => db.promise().query(sql, params);
 
+const initAuthTables = async () => {
+  try {
+    await query(`CREATE TABLE IF NOT EXISTS users (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      username VARCHAR(100) UNIQUE NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS user_profiles (
+      user_id INT PRIMARY KEY,
+      first_name VARCHAR(100),
+      last_name VARCHAR(100),
+      date_of_birth DATE,
+      currency VARCHAR(10),
+      bank VARCHAR(100),
+      avatar_url VARCHAR(255),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS email_settings (
+      user_id INT PRIMARY KEY,
+      provider VARCHAR(50) NOT NULL,
+      smtp_host VARCHAR(150),
+      smtp_port INT,
+      smtp_user VARCHAR(150),
+      smtp_pass TEXT,
+      api_key TEXT,
+      from_email VARCHAR(150),
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`);
+    const [cols] = await query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'report_schedules' AND COLUMN_NAME = 'user_id'`,
+      [process.env.DB_NAME]
+    );
+    if (!cols || cols.length === 0) {
+      await query(`ALTER TABLE report_schedules ADD COLUMN user_id INT NULL`);
+    }
+  } catch (err) {
+    console.error("Failed to init auth tables:", err);
+  }
+};
+
 const hasEmailConfig =
   process.env.SMTP_HOST &&
   process.env.SMTP_PORT &&
   process.env.SMTP_USER &&
   process.env.SMTP_PASS;
+const EMAIL_DEV_MODE = process.env.EMAIL_DEV_MODE || ""; // set to "ethereal" to use test SMTP
 
 let mailTransporter = null;
+let lastEmailVerifyError = null;
 
 if (hasEmailConfig) {
   mailTransporter = nodemailer.createTransport({
@@ -71,15 +194,15 @@ if (hasEmailConfig) {
   });
 } else {
   console.warn(
-    "Email transporter not configured. Scheduled reports will be skipped."
+    "Email transporter not configured globally. Per-user settings or Ethereal dev mode will be used."
   );
 }
 
 const REPORT_FROM_EMAIL =
   process.env.REPORT_FROM_EMAIL || process.env.SMTP_USER || "reports@tracker";
 
-let emailVerified = false;
-if (mailTransporter) {
+let emailVerified = true;
+if (mailTransporter && process.env.SMTP_VERIFY === "true") {
   mailTransporter
     .verify()
     .then(() => {
@@ -88,6 +211,7 @@ if (mailTransporter) {
     })
     .catch((err) => {
       emailVerified = false;
+      lastEmailVerifyError = (err && err.response) || err?.message || String(err);
       console.error("SMTP transport verification failed:", err);
     });
 }
@@ -422,13 +546,50 @@ const SEND_TIME = (process.env.REPORT_SEND_TIME || "06:15").split(":");
 const SEND_HOUR = Number(SEND_TIME[0]);
 const SEND_MINUTE = Number(SEND_TIME[1]);
 
+const resolveUserTransporter = async (userId) => {
+  if (EMAIL_DEV_MODE === "ethereal") {
+    if (!mailTransporter) {
+      const account = await nodemailer.createTestAccount();
+      mailTransporter = nodemailer.createTransport({
+        host: account.smtp.host,
+        port: account.smtp.port,
+        secure: account.smtp.secure,
+        auth: { user: account.user, pass: account.pass },
+      });
+    }
+    return mailTransporter;
+  }
+  if (!userId) return mailTransporter;
+  try {
+    const [[settings]] = await query("SELECT * FROM email_settings WHERE user_id = ?", [userId]);
+    if (!settings) return mailTransporter;
+    const provider = settings.provider;
+    if (provider === "sendgrid" && settings.api_key) {
+      const pass = decryptSecret(settings.api_key) || settings.api_key;
+      return nodemailer.createTransport({ host: "smtp.sendgrid.net", port: 587, secure: false, auth: { user: "apikey", pass } });
+    }
+    if (provider === "smtp" && settings.smtp_host && settings.smtp_user && settings.smtp_port && settings.smtp_pass) {
+      const pass = decryptSecret(settings.smtp_pass) || settings.smtp_pass;
+      return nodemailer.createTransport({ host: settings.smtp_host, port: Number(settings.smtp_port), secure: Number(settings.smtp_port) === 465, auth: { user: settings.smtp_user, pass } });
+    }
+    if (provider === "outlook") {
+      const pass = decryptSecret(settings.smtp_pass) || settings.smtp_pass;
+      return nodemailer.createTransport({ host: "smtp.office365.com", port: 587, secure: false, auth: { user: settings.smtp_user, pass } });
+    }
+    return mailTransporter;
+  } catch (_) {
+    return mailTransporter;
+  }
+};
+
 const sendScheduledReport = async (scheduleId) => {
-  if (!mailTransporter || !emailVerified) return;
   const [[schedule]] = await query(
     "SELECT * FROM report_schedules WHERE id = ? AND is_active = TRUE",
     [scheduleId]
   );
   if (!schedule) return;
+  const transporter = await resolveUserTransporter(schedule.user_id);
+  if (!transporter) return;
   try {
     const isWeekly = schedule.frequency === "weekly";
     const rangeStart = isWeekly
@@ -458,7 +619,7 @@ const sendScheduledReport = async (scheduleId) => {
       : rangeStart.format("YYYY-MM");
     const filename = `expense-report-${filenameBase}.${extension}`;
 
-    await mailTransporter.sendMail({
+    await transporter.sendMail({
       from: REPORT_FROM_EMAIL,
       to: schedule.recipient_email,
       subject: isWeekly
@@ -505,6 +666,7 @@ const initScheduleJobs = async () => {
 processRecurringTransactions();
 cron.schedule("5 3 * * *", processRecurringTransactions);
 initScheduleJobs();
+initAuthTables();
 
 app.get("/api/health", async (req, res, next) => {
   try {
@@ -522,34 +684,153 @@ app.get("/api/health", async (req, res, next) => {
 });
 
 app.get("/api/email/status", (req, res) => {
+  const transportInfo = mailTransporter && mailTransporter.options
+    ? {
+        host: mailTransporter.options.host,
+        port: mailTransporter.options.port,
+        secure: !!mailTransporter.options.secure,
+      }
+    : null;
   res.json({
     configured: !!mailTransporter,
     verified: emailVerified,
-    host: process.env.SMTP_HOST || null,
-    port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : null,
-    userPresent: !!process.env.SMTP_USER,
+    transport: transportInfo,
+    devMode: EMAIL_DEV_MODE || null,
+    error: lastEmailVerifyError,
   });
 });
 
-app.post("/api/email/test", async (req, res) => {
+app.post("/api/email/test", authMiddleware, async (req, res) => {
   try {
-    if (!mailTransporter) {
-      return res.status(400).json({ error: "Email not configured" });
-    }
     const to = req.body?.to;
     if (!to) {
       return res.status(400).json({ error: "Recipient 'to' is required" });
     }
-    const info = await mailTransporter.sendMail({
-      from: REPORT_FROM_EMAIL,
+    const transporter = await resolveUserTransporter(req.userId);
+    if (!transporter) {
+      return res.status(400).json({ error: "Email not configured for user" });
+    }
+    const [[settings]] = await query("SELECT from_email FROM email_settings WHERE user_id = ?", [req.userId]);
+    const fromAddr = settings?.from_email || REPORT_FROM_EMAIL;
+    const info = await transporter.sendMail({
+      from: fromAddr,
       to,
       subject: "Expense Tracker Email Test",
       text: "This is a test email from Expense Tracker backend.",
     });
-    res.json({ message: "Test email sent", id: info.messageId });
+    const previewUrl = nodemailer.getTestMessageUrl(info) || null;
+    res.json({ message: "Test email sent", id: info.messageId, previewUrl });
   } catch (err) {
     console.error("Error sending test email:", err);
     res.status(500).json({ error: "Failed to send test email" });
+  }
+});
+
+// Auth: register/login
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: "Username and password required" });
+    const [existing] = await query("SELECT id FROM users WHERE username = ?", [username]);
+    if (existing.length) return res.status(409).json({ error: "Username already exists" });
+    const password_hash = hashPassword(password);
+    const [result] = await query("INSERT INTO users (username, password_hash) VALUES (?, ?)", [username, password_hash]);
+    await query("INSERT INTO user_profiles (user_id) VALUES (?)", [result.insertId]);
+    const token = signJwt({ userId: result.insertId, username });
+    res.status(201).json({ token });
+  } catch (err) {
+    console.error("Register error:", err);
+    res.status(500).json({ error: "Failed to register" });
+  }
+});
+
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: "Username and password required" });
+    const [[user]] = await query("SELECT * FROM users WHERE username = ?", [username]);
+    if (!user) {
+      const password_hash = hashPassword(password);
+      const [result] = await query("INSERT INTO users (username, password_hash) VALUES (?, ?)", [username, password_hash]);
+      await query("INSERT INTO user_profiles (user_id) VALUES (?)", [result.insertId]);
+      const token = signJwt({ userId: result.insertId, username });
+      return res.status(201).json({ token, created: true });
+    }
+    if (!verifyPassword(password, user.password_hash)) return res.status(401).json({ error: "Invalid credentials" });
+    const token = signJwt({ userId: user.id, username });
+    res.json({ token });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ error: "Failed to login" });
+  }
+});
+
+// Profile
+app.get("/api/profile", authMiddleware, async (req, res) => {
+  try {
+    const [[profile]] = await query("SELECT * FROM user_profiles WHERE user_id = ?", [req.userId]);
+    res.json(profile || {});
+  } catch (err) {
+    console.error("Profile load error:", err);
+    res.status(500).json({ error: "Failed to load profile" });
+  }
+});
+
+
+app.put("/api/profile", authMiddleware, async (req, res) => {
+  try {
+    const { first_name, last_name, date_of_birth, currency, bank, avatar_url } = req.body;
+    await query(
+      `UPDATE user_profiles SET first_name = ?, last_name = ?, date_of_birth = ?, currency = ?, bank = ?, avatar_url = ? WHERE user_id = ?`,
+      [first_name, last_name, date_of_birth, currency, bank, avatar_url, req.userId]
+    );
+    res.json({ message: "Profile updated" });
+  } catch (err) {
+    console.error("Profile update error:", err);
+    res.status(500).json({ error: "Failed to update profile" });
+  }
+});
+
+// Email settings per user
+app.get("/api/email/settings", authMiddleware, async (req, res) => {
+  try {
+    const [[settings]] = await query("SELECT provider, smtp_host, smtp_port, smtp_user, from_email FROM email_settings WHERE user_id = ?", [req.userId]);
+    res.json(settings || {});
+  } catch (err) {
+    console.error("Load email settings error:", err);
+    res.status(500).json({ error: "Failed to load email settings" });
+  }
+});
+
+app.put("/api/email/settings", authMiddleware, async (req, res) => {
+  try {
+    const { provider, smtp_host, smtp_port, smtp_user, smtp_pass, api_key, from_email } = req.body;
+    const encPass = smtp_pass ? encryptSecret(smtp_pass) : null;
+    const encKey = api_key ? encryptSecret(api_key) : null;
+    await query(
+      `INSERT INTO email_settings (user_id, provider, smtp_host, smtp_port, smtp_user, smtp_pass, api_key, from_email)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE provider = VALUES(provider), smtp_host = VALUES(smtp_host), smtp_port = VALUES(smtp_port), smtp_user = VALUES(smtp_user), smtp_pass = VALUES(smtp_pass), api_key = VALUES(api_key), from_email = VALUES(from_email)`,
+      [req.userId, provider, smtp_host, smtp_port, smtp_user, encPass, encKey, from_email]
+    );
+    res.json({ message: "Email settings saved" });
+  } catch (err) {
+    console.error("Save email settings error:", err);
+    res.status(500).json({ error: "Failed to save email settings" });
+  }
+});
+
+app.post("/api/report-schedules/:id/send-now", async (req, res) => {
+  try {
+    const scheduleId = Number(req.params.id);
+    if (!Number.isFinite(scheduleId)) {
+      return res.status(400).json({ error: "Invalid schedule id" });
+    }
+    await sendScheduledReport(scheduleId);
+    res.json({ message: "Report sent" });
+  } catch (err) {
+    console.error("Error in send-now:", err);
+    res.status(500).json({ error: "Failed to send report now" });
   }
 });
 
@@ -1203,9 +1484,20 @@ app.post("/api/reports/export", async (req, res) => {
 
 app.get("/api/report-schedules", async (req, res) => {
   try {
-    const [rows] = await query(
-      "SELECT * FROM report_schedules ORDER BY is_active DESC, next_send_date ASC"
-    );
+    const userId = (() => {
+      const header = req.headers.authorization || "";
+      const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+      const payload = token ? verifyJwt(token) : null;
+      return payload?.userId || null;
+    })();
+    const [rows] = userId
+      ? await query(
+          "SELECT * FROM report_schedules WHERE user_id = ? ORDER BY is_active DESC, next_send_date ASC",
+          [userId]
+        )
+      : await query(
+          "SELECT * FROM report_schedules ORDER BY is_active DESC, next_send_date ASC"
+        );
     res.json(rows);
   } catch (error) {
     console.error("Error fetching report schedules:", error);
@@ -1213,7 +1505,7 @@ app.get("/api/report-schedules", async (req, res) => {
   }
 });
 
-app.post("/api/report-schedules", async (req, res) => {
+app.post("/api/report-schedules", authMiddleware, async (req, res) => {
   try {
     const {
       recipient_email,
@@ -1239,8 +1531,8 @@ app.post("/api/report-schedules", async (req, res) => {
 
     const [result] = await query(
       `INSERT INTO report_schedules
-        (recipient_email, format, frequency, include_budget_overview, include_trends, include_recurring, next_send_date)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        (recipient_email, format, frequency, include_budget_overview, include_trends, include_recurring, next_send_date, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         recipient_email,
         format,
@@ -1249,6 +1541,7 @@ app.post("/api/report-schedules", async (req, res) => {
         include_trends,
         include_recurring,
         initialSendDate.format("YYYY-MM-DD"),
+        req.userId,
       ]
     );
     const [[row]] = await query(
@@ -1263,7 +1556,7 @@ app.post("/api/report-schedules", async (req, res) => {
   }
 });
 
-app.put("/api/report-schedules/:id", async (req, res) => {
+app.put("/api/report-schedules/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -1280,7 +1573,7 @@ app.put("/api/report-schedules/:id", async (req, res) => {
     await query(
       `UPDATE report_schedules
        SET recipient_email = ?, format = ?, frequency = ?, include_budget_overview = ?, include_trends = ?, include_recurring = ?, next_send_date = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
+       WHERE id = ? AND user_id = ?`,
       [
         recipient_email,
         format,
@@ -1291,6 +1584,7 @@ app.put("/api/report-schedules/:id", async (req, res) => {
         next_send_date,
         is_active,
         id,
+        req.userId,
       ]
     );
     const [[row]] = await query(
@@ -1305,10 +1599,10 @@ app.put("/api/report-schedules/:id", async (req, res) => {
   }
 });
 
-app.delete("/api/report-schedules/:id", async (req, res) => {
+app.delete("/api/report-schedules/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    await query("DELETE FROM report_schedules WHERE id = ?", [id]);
+    await query("DELETE FROM report_schedules WHERE id = ? AND user_id = ?", [id, req.userId]);
     res.json({ message: "Report schedule deleted" });
   } catch (error) {
     console.error("Error deleting report schedule:", error);
