@@ -8,10 +8,10 @@ import {
 } from "react";
 import Analytics from "./Analytics";
 import "./App.css";
+import Automation from "./Automation";
 import BudgetGoals from "./BudgetGoals";
 import ExpenseTemplates from "./ExpenseTemplates";
 import SpendingTrends from "./SpendingTrends";
-import Automation from "./Automation";
 import apiClient from "./api/apiClient";
 import { EXPENSE_CATEGORIES } from "./constants/categories";
 import { formatCurrency } from "./utils/format";
@@ -66,6 +66,14 @@ const sortByColumn = (collection, column, type, order) => {
 };
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(() => !!(localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token")));
+  const [showAuthDialog, setShowAuthDialog] = useState(() => !((localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token"))));
+  const [authMode, setAuthMode] = useState("login");
+  const [authUsername, setAuthUsername] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authRepeat, setAuthRepeat] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
+  const [authBusy, setAuthBusy] = useState(false);
   const [darkMode, setDarkMode] = useState(
     () => localStorage.getItem("darkMode") === "true"
   );
@@ -112,12 +120,55 @@ function App() {
 
   const toggleDarkMode = () => setDarkMode((prevMode) => !prevMode);
 
+  const storeToken = (token) => {
+    if (rememberMe) {
+      localStorage.setItem("auth_token", token);
+      sessionStorage.removeItem("auth_token");
+    } else {
+      sessionStorage.setItem("auth_token", token);
+      localStorage.removeItem("auth_token");
+    }
+  };
+
+  const handleAuthSubmit = async (e) => {
+    e.preventDefault();
+    setAuthBusy(true);
+    try {
+      if (authMode === "register") {
+        if (!authUsername || !authPassword || authPassword !== authRepeat) {
+          alert("Fill username/password and ensure passwords match.");
+          return;
+        }
+        const { data } = await apiClient.post("/auth/register", { username: authUsername, password: authPassword });
+        storeToken(data.token);
+        setIsAuthenticated(true);
+        setShowAuthDialog(false);
+      } else {
+        const { data } = await apiClient.post("/auth/login", { username: authUsername, password: authPassword });
+        storeToken(data.token);
+        setIsAuthenticated(true);
+        setShowAuthDialog(false);
+      }
+    } catch (error) {
+      console.error("Auth error", error);
+      alert("Authentication failed");
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("auth_token");
+    sessionStorage.removeItem("auth_token");
+    setIsAuthenticated(false);
+    setShowAuthDialog(true);
+  };
+
   const fetchExpenses = useCallback(async () => {
     try {
       setLoading(true);
       const response = await apiClient.get("/expenses");
       setExpenses(response.data);
-      setFilteredExpenses(response.data);
     } catch (error) {
       console.error("Error fetching expenses:", error);
     } finally {
@@ -129,7 +180,6 @@ function App() {
     try {
       const response = await apiClient.get("/credits");
       setCredits(response.data);
-      setFilteredCredits(response.data);
     } catch (error) {
       console.error("Error fetching credits:", error);
     }
@@ -139,6 +189,79 @@ function App() {
     fetchExpenses();
     fetchCredits();
   }, [fetchExpenses, fetchCredits]);
+
+  // Re-apply filters when data changes to keep the view consistent
+  useEffect(() => {
+    const query = filterName.trim().toLowerCase();
+
+    const matchQuery = (record) =>
+      !query ||
+      record.name.toLowerCase().includes(query) ||
+      record.category.toLowerCase().includes(query);
+
+    const matchStart = (recordDate) => !startDate || recordDate >= startDate;
+
+    const matchEnd = (recordDate) => !endDate || recordDate <= endDate;
+
+    const filteredExp = expenses.filter((exp) => {
+      const normalizedDate = exp.date?.slice(0, 10);
+      return (
+        matchQuery(exp) &&
+        matchStart(normalizedDate) &&
+        matchEnd(normalizedDate)
+      );
+    });
+
+    const filteredCreds = credits.filter((credit) => {
+      const normalizedDate = credit.date?.slice(0, 10);
+      return (
+        matchQuery(credit) &&
+        matchStart(normalizedDate) &&
+        matchEnd(normalizedDate)
+      );
+    });
+
+    setFilteredExpenses(filteredExp);
+    setFilteredCredits(filteredCreds);
+    // We intentionally do not update showExpenses here to preserve the user's view state
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expenses, credits]); // Only run when underlying data changes
+
+
+
+  useEffect(() => {
+    const query = filterName.trim().toLowerCase();
+
+    const matchQuery = (record) =>
+      !query ||
+      record.name.toLowerCase().includes(query) ||
+      record.category.toLowerCase().includes(query);
+
+    const matchStart = (recordDate) => !startDate || recordDate >= startDate;
+
+    const matchEnd = (recordDate) => !endDate || recordDate <= endDate;
+
+    const filteredExp = expenses.filter((exp) => {
+      const normalizedDate = exp.date?.slice(0, 10);
+      return (
+        matchQuery(exp) &&
+        matchStart(normalizedDate) &&
+        matchEnd(normalizedDate)
+      );
+    });
+
+    const filteredCreds = credits.filter((credit) => {
+      const normalizedDate = credit.date?.slice(0, 10);
+      return (
+        matchQuery(credit) &&
+        matchStart(normalizedDate) &&
+        matchEnd(normalizedDate)
+      );
+    });
+
+    setFilteredExpenses(filteredExp);
+    setFilteredCredits(filteredCreds);
+  }, [expenses, credits, filterName, startDate, endDate]);
 
   const totalExpenses = useMemo(
     () =>
@@ -932,6 +1055,11 @@ function App() {
           >
             {darkMode ? "Light Mode" : "Dark Mode"}
           </button>
+          {isAuthenticated && (
+            <div className="account-menu">
+              <button type="button" className="btn btn-ghost" onClick={handleLogout}>Logout</button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -967,17 +1095,19 @@ function App() {
       </nav>
 
       <main className="main-content">
-        <div className="tab-content">
-          {activeTab === "dashboard" && renderDashboardContent()}
-          {activeTab === "budget" && <BudgetGoals />}
-          {activeTab === "analytics" && (
-            <>
-              <Analytics />
-              <SpendingTrends />
-            </>
-          )}
-          {activeTab === "automation" && <Automation />}
-        </div>
+        {isAuthenticated ? (
+          <div className="tab-content">
+            {activeTab === "dashboard" && renderDashboardContent()}
+            {activeTab === "budget" && <BudgetGoals />}
+            {activeTab === "analytics" && (
+              <>
+                <Analytics />
+                <SpendingTrends />
+              </>
+            )}
+            {activeTab === "automation" && <Automation />}
+          </div>
+        ) : null}
       </main>
 
       {isModalOpen && (
@@ -1001,6 +1131,41 @@ function App() {
                 <p className="chart-empty">
                   Add expenses or credits to view the category breakdown.
                 </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAuthDialog && (
+        <div className="modal-overlay auth-overlay" onClick={() => setShowAuthDialog(false)}>
+          <div className="modal-content auth-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header auth-header">
+              <h2>{authMode === "register" ? "USER REGISTER" : "USER LOGIN"}</h2>
+            </div>
+            <form className="grid-form auth-form" onSubmit={handleAuthSubmit}>
+              <div className="input-with-icon">
+                <span className="input-icon">👤</span>
+                <input type="text" placeholder="Email ID" value={authUsername} onChange={(e) => setAuthUsername(e.target.value)} />
+              </div>
+              <div className="input-with-icon">
+                <span className="input-icon">🔒</span>
+                <input type="password" placeholder="Password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} />
+              </div>
+              {authMode === "register" && (
+                <div className="input-with-icon">
+                  <span className="input-icon">🔒</span>
+                  <input type="password" placeholder="Repeat password" value={authRepeat} onChange={(e) => setAuthRepeat(e.target.value)} />
+                </div>
+              )}
+              <div className="auth-row"><label className="remember"><input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} /> Remember me</label><a className="forgot" href="#">Forgot Password?</a></div>
+              <div className="form-actions"><button type="submit" className="btn btn-primary" disabled={authBusy}>{authMode === "register" ? "REGISTER" : "LOGIN"}</button></div>
+            </form>
+            <div className="auth-secondary">
+              {authMode === "register" ? (
+                <button type="button" className="btn btn-outline" onClick={() => setAuthMode("login")}>LOGIN</button>
+              ) : (
+                <button type="button" className="btn btn-outline" onClick={() => setAuthMode("register")}>REGISTER</button>
               )}
             </div>
           </div>

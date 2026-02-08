@@ -80,12 +80,6 @@ const downloadBlob = (blob, filename) => {
 };
 
 const Automation = () => {
-  const [authMode, setAuthMode] = useState("login");
-  const [authUsername, setAuthUsername] = useState("");
-  const [authPassword, setAuthPassword] = useState("");
-  const [authRepeat, setAuthRepeat] = useState("");
-  const [isAuthBusy, setAuthBusy] = useState(false);
-  const [profile, setProfile] = useState({ first_name: "", last_name: "", date_of_birth: "", currency: "EUR", bank: "", avatar_url: "" });
   const [expectedIncomes, setExpectedIncomes] = useState([]);
   const [newIncome, setNewIncome] = useState(emptyIncome);
   const [editingIncome, setEditingIncome] = useState(null);
@@ -154,57 +148,7 @@ const Automation = () => {
     setExpectedIncomes(data);
   };
 
-  const handleAuthSubmit = async (e) => {
-    e.preventDefault();
-    setAuthBusy(true);
-    try {
-      if (authMode === "register") {
-        if (!authUsername || !authPassword || authPassword !== authRepeat) {
-          alert("Fill username/password and ensure passwords match.");
-          return;
-        }
-        const { data } = await apiClient.post("/auth/register", { username: authUsername, password: authPassword });
-        localStorage.setItem("auth_token", data.token);
-        setAuthMode("login");
-      } else {
-        const { data } = await apiClient.post("/auth/login", { username: authUsername, password: authPassword });
-        localStorage.setItem("auth_token", data.token);
-        await fetchProfile();
-        await fetchEmailSettings();
-        fetchEmailStatus();
-        loadReportSchedules();
-      }
-    } catch (error) {
-      console.error("Auth error", error);
-      alert("Authentication failed");
-    } finally {
-      setAuthBusy(false);
-    }
-  };
 
-  const fetchProfile = async () => {
-    try {
-      const { data } = await apiClient.get("/profile");
-      setProfile({
-        first_name: data?.first_name || "",
-        last_name: data?.last_name || "",
-        date_of_birth: data?.date_of_birth || "",
-        currency: data?.currency || "EUR",
-        bank: data?.bank || "",
-        avatar_url: data?.avatar_url || "",
-      });
-    } catch (_) {}
-  };
-
-  const saveProfile = async () => {
-    try {
-      await apiClient.put("/profile", profile);
-      alert("Profile saved");
-    } catch (error) {
-      console.error("Profile save error", error);
-      alert("Failed to save profile");
-    }
-  };
 
   const loadRecurringTransactions = async () => {
     const { data } = await apiClient.get("/recurring-transactions");
@@ -287,9 +231,8 @@ const Automation = () => {
     loadExpectedIncomes();
     loadRecurringTransactions();
     fetchEmailStatus();
-    const token = localStorage.getItem("auth_token");
+    const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
     if (token) {
-      fetchProfile();
       fetchEmailSettings();
       loadReportSchedules();
     }
@@ -442,37 +385,7 @@ const Automation = () => {
 
   return (
     <div className="automation-container">
-      <section className="card automation-card">
-        <div className="card-header">
-          <h2>Account</h2>
-        </div>
-        <form className="grid-form" onSubmit={handleAuthSubmit}>
-          <select value={authMode} onChange={(e) => setAuthMode(e.target.value)}>
-            <option value="login">Login</option>
-            <option value="register">Create account</option>
-          </select>
-          <input type="text" placeholder="Username" value={authUsername} onChange={(e) => setAuthUsername(e.target.value)} />
-          <input type="password" placeholder="Password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} />
-          {authMode === "register" && (
-            <input type="password" placeholder="Repeat password" value={authRepeat} onChange={(e) => setAuthRepeat(e.target.value)} />
-          )}
-          <div className="form-actions">
-            <button type="submit" className="btn btn-primary" disabled={isAuthBusy}>{authMode === "register" ? "Create account" : "Login"}</button>
-            <button type="button" className="btn btn-ghost" onClick={() => { setAuthUsername(""); setAuthPassword(""); setAuthRepeat(""); }}>Clear</button>
-          </div>
-        </form>
-        <div className="grid-form">
-          <input type="text" placeholder="First name" value={profile.first_name} onChange={(e) => setProfile((p) => ({ ...p, first_name: e.target.value }))} />
-          <input type="text" placeholder="Last name" value={profile.last_name} onChange={(e) => setProfile((p) => ({ ...p, last_name: e.target.value }))} />
-          <input type="date" placeholder="Date of birth" value={profile.date_of_birth} onChange={(e) => setProfile((p) => ({ ...p, date_of_birth: e.target.value }))} />
-          <input type="text" placeholder="Currency" value={profile.currency} onChange={(e) => setProfile((p) => ({ ...p, currency: e.target.value }))} />
-          <input type="text" placeholder="Bank" value={profile.bank} onChange={(e) => setProfile((p) => ({ ...p, bank: e.target.value }))} />
-          <input type="url" placeholder="Avatar URL" value={profile.avatar_url} onChange={(e) => setProfile((p) => ({ ...p, avatar_url: e.target.value }))} />
-          <div className="form-actions">
-            <button type="button" className="btn btn-secondary" onClick={saveProfile}>Save Profile</button>
-          </div>
-        </div>
-      </section>
+      
       <section className="card automation-card">
         <div className="card-header">
           <h2>Expected Income</h2>
@@ -856,7 +769,7 @@ const Automation = () => {
         <div className="grid-form">
           <label>
             Provider
-            <select>
+            <select value={emailProvider} onChange={(e) => setEmailProvider(e.target.value)}>
               <option value="">Select...</option>
               <option value="sendgrid">SendGrid</option>
               <option value="outlook">Outlook</option>
@@ -865,28 +778,31 @@ const Automation = () => {
           </label>
           <label>
             From Email
-            <input type="email" />
+            <input type="email" value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} />
           </label>
           <label>
             SendGrid API Key
-            <input type="password" />
+            <input type="password" value={sendgridKey} onChange={(e) => setSendgridKey(e.target.value)} />
           </label>
           <label>
             SMTP Host
-            <input type="text" />
+            <input type="text" value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} />
           </label>
           <label>
             SMTP Port
-            <input type="number" />
+            <input type="number" value={smtpPort} onChange={(e) => setSmtpPort(Number(e.target.value) || 0)} />
           </label>
           <label>
             SMTP User
-            <input type="text" />
+            <input type="text" value={smtpUser} onChange={(e) => setSmtpUser(e.target.value)} />
           </label>
           <label>
             SMTP Password / App Password
-            <input type="password" />
+            <input type="password" value={smtpPass} onChange={(e) => setSmtpPass(e.target.value)} />
           </label>
+          <div className="form-actions">
+            <button type="button" className="btn btn-secondary" onClick={saveEmailSettings}>Save Email Settings</button>
+          </div>
         </div>
       </section>
 

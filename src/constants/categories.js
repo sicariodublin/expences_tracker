@@ -1,5 +1,6 @@
 export const EXPENSE_CATEGORIES = [
   "Carro",
+  "Credit",
   "Eating Out",
   "Education",
   "Entertainment",
