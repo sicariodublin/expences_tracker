@@ -1,7 +1,7 @@
 const dayjs = require("dayjs");
 
 const parseNumber = (value) => {
-  if (value == null) return 0;
+  if (value === null) return 0;
   const s = String(value).replace(/\s+/g, "").replace(/,/g, "");
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
@@ -34,7 +34,7 @@ const cleanName = (raw) => {
   s = s.replace(/^\s*(VDC-|VDP-|D\/D|VDC-WWW)\s*/i, "");
   s = s.replace(/\*/g, "");
   // Collapse multiple spaces and dashes
-  s = s.replace(/[\s\-]{2,}/g, " ").trim();
+  s = s.replace(/[\s-]{2,}/g, " ").trim();
   // Title case
   s = toTitleCase(s);
   return s;
@@ -44,18 +44,21 @@ const deriveCategory = (name) => {
   if (!name) return "Uncategorized";
   const n = name.toUpperCase();
   if (/NETFLIX|SPOTIFY/i.test(n)) return "Entertainment";
-  if (/LIDL|ALDI|TESCO|SUPERVALU|SPAR/i.test(n)) return "Groceries";
-  if (/APPLEGREEN|PETROL|PARKING/i.test(n)) return "Carro";
+  if (/LIDL|ALDI|TESCO|SUPERVALU|SPAR|MORE 4|POLSKI/i.test(n)) return "Groceries";
+  if (/APPLEGREEN|PETROL|PARKING|ONLINE MOTOR|TOLL/i.test(n)) return "Carro";
   if (/AIB CARD PYMT|NAPS LOAN|PREMIUM CREDIT/i.test(n)) return "Loan/CreditCard";
-  if (/IRISH LIFE|PHARMACY/i.test(n)) return "Healthcare";
-  if (/BORD GAIS|EIR|RENT|GAS/i.test(n)) return "Utilities";
-  if (/FEES|TAX/i.test(n)) return "Fees";
+  if (/IRISH LIFE|BRECAN PHARM|GP|THE MEDICAL CENTER/i.test(n)) return "Healthcare";
+  if (/BORD GAIS|EIR|RENT|GAS|MORIATY REAL/i.test(n)) return "Utilities";
+  if (/FEES|TAX|STAMP DUTY/i.test(n)) return "Fees";
   if (/MICROSOFT|APPLE|GOOGLE|OPENAI|TRAE/i.test(n)) return "Licenses";
   if (/AMAZON/i.test(n)) return "Others";
   if (/APACHE PIZZA|SPAR EAST|EDDIE ROCKETS/i.test(n)) return "Eating Out";
-  if (/HUMMGROUP/i.test(n)) return "Gifts";
+  if (/LEAP CARD|IRISH RAIL/i.test(n)) return "Transport";
+  if (/HUMMGROUP|FOOT LOCKER/i.test(n)) return "Gifts";
   if (/PLATINUM/i.test(n)) return "Gym";
-  if (/GUSTAVO|HPNUTRITION/i.test(n)) return "Self-Care";
+  if (/GUSTAVO|HPNUTRITION|SP DISCOUNT|IHERB|VITAMIN SHOP|MOV &|/i.test(n)) return "Self-Care";
+  if (/PREMIER LOTT|IKEA|PENNEYS|HUMMGROUP|AMAZON.IE/i.test(n)) return "Others";
+  if (/PYEU|FABIO|REV|SALARY/i.test(n)) return "Income";
   return "Uncategorized";
 };
 
