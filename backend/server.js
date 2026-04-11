@@ -133,6 +133,44 @@ db.connect((err) => {
 
 const query = (sql, params = []) => db.promise().query(sql, params);
 
+const USER_SCOPED_TABLES = [
+  "expenses",
+  "credits",
+  "budget_goals",
+  "expected_incomes",
+  "recurring_transactions",
+  "report_schedules",
+];
+
+const claimOrphanedData = async (userId) => {
+  for (const tableName of USER_SCOPED_TABLES) {
+    await query(`UPDATE ${tableName} SET user_id = ? WHERE user_id IS NULL`, [
+      userId,
+    ]);
+  }
+};
+
+const maybeClaimOrphanedData = async (userId) => {
+  const [[counts]] = await query(
+    `SELECT
+      (SELECT COUNT(*) FROM expenses WHERE user_id = ?) AS user_expenses,
+      (SELECT COUNT(*) FROM credits WHERE user_id = ?) AS user_credits,
+      (SELECT COUNT(*) FROM expenses WHERE user_id IS NULL) AS orphan_expenses,
+      (SELECT COUNT(*) FROM credits WHERE user_id IS NULL) AS orphan_credits`,
+    [userId, userId]
+  );
+
+  const userTotal =
+    (Number(counts?.user_expenses) || 0) + (Number(counts?.user_credits) || 0);
+  const orphanTotal =
+    (Number(counts?.orphan_expenses) || 0) +
+    (Number(counts?.orphan_credits) || 0);
+
+  if (userTotal === 0 && orphanTotal > 0) {
+    await claimOrphanedData(userId);
+  }
+};
+
 const initAuthTables = async () => {
   try {
     await query(`CREATE TABLE IF NOT EXISTS users (
@@ -163,16 +201,20 @@ const initAuthTables = async () => {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )`);
-    const tables = ['expenses', 'credits', 'budget_goals', 'expected_incomes', 'recurring_transactions', 'report_schedules'];
-    for (const tableName of tables) {
-      const [cols] = await query(
-        `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'user_id'`,
-        [process.env.DB_NAME, tableName]
-      );
-      if (!cols || cols.length === 0) {
+    for (const tableName of USER_SCOPED_TABLES) {
+      try {
         await query(`ALTER TABLE ${tableName} ADD COLUMN user_id INT NULL`);
-        // Assign existing rows to the first user so data isn't lost on migration
-        await query(`UPDATE ${tableName} SET user_id = 1 WHERE user_id IS NULL`);
+      } catch (alterErr) {
+        // ER_DUP_FIELDNAME (1060) means column already exists — safe to ignore
+        if (alterErr.code !== 'ER_DUP_FIELDNAME') throw alterErr;
+      }
+    }
+    // If there is exactly one user, assign all data to them (single-user personal app)
+    const [[userCount]] = await query("SELECT COUNT(*) as cnt FROM users");
+    if (userCount && userCount.cnt === 1) {
+      const [[onlyUser]] = await query("SELECT id FROM users LIMIT 1");
+      for (const tableName of USER_SCOPED_TABLES) {
+        await query(`UPDATE ${tableName} SET user_id = ? WHERE user_id IS NULL OR user_id != ?`, [onlyUser.id, onlyUser.id]);
       }
     }
   } catch (err) {
@@ -674,7 +716,6 @@ const initScheduleJobs = async () => {
 processRecurringTransactions();
 cron.schedule("5 3 * * *", processRecurringTransactions);
 initScheduleJobs();
-initAuthTables();
 
 app.get("/api/health", async (req, res, next) => {
   try {
@@ -744,6 +785,10 @@ app.post("/api/auth/register", async (req, res) => {
     const password_hash = hashPassword(password);
     const [result] = await query("INSERT INTO users (username, password_hash) VALUES (?, ?)", [username, password_hash]);
     await query("INSERT INTO user_profiles (user_id) VALUES (?)", [result.insertId]);
+    const [[userCount]] = await query("SELECT COUNT(*) as cnt FROM users");
+    if (userCount && userCount.cnt === 1) {
+      await claimOrphanedData(result.insertId);
+    }
     const token = signJwt({ userId: result.insertId, username });
     res.status(201).json({ token });
   } catch (err) {
@@ -759,6 +804,7 @@ app.post("/api/auth/login", async (req, res) => {
     const [[user]] = await query("SELECT * FROM users WHERE username = ?", [username]);
     if (!user) return res.status(401).json({ error: "Invalid credentials" });
     if (!verifyPassword(password, user.password_hash)) return res.status(401).json({ error: "Invalid credentials" });
+    await maybeClaimOrphanedData(user.id);
     const token = signJwt({ userId: user.id, username });
     res.json({ token });
   } catch (err) {
@@ -769,6 +815,18 @@ app.post("/api/auth/login", async (req, res) => {
 
 app.post("/api/auth/logout", authMiddleware, (req, res) => {
   res.json({ message: "Logged out" });
+});
+
+// One-time data claim: reassigns all rows to the currently logged-in user.
+// Safe to call multiple times. Use this after first login if data shows zero.
+app.post("/api/auth/claim-data", authMiddleware, async (req, res) => {
+  try {
+    await claimOrphanedData(req.userId);
+    res.json({ message: "Orphaned data claimed by current user", userId: req.userId });
+  } catch (err) {
+    console.error("Claim data error:", err);
+    res.status(500).json({ error: "Failed to claim data" });
+  }
 });
 
 // Profile
@@ -1662,8 +1720,8 @@ app.post("/api/upload", authMiddleware, upload.single("file"), (req, res, next) 
           const [existing] = await db
             .promise()
             .query(
-              `SELECT id FROM ${table} WHERE name = ? AND amount = ? AND date = ? LIMIT 1`,
-              [name, amount, date]
+              `SELECT id FROM ${table} WHERE user_id = ? AND name = ? AND amount = ? AND date = ? LIMIT 1`,
+              [req.userId, name, amount, date]
             );
           if (existing.length) {
             duplicates += 1;
