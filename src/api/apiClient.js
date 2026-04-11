@@ -18,9 +18,14 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      const hadToken = !!(localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token"));
       localStorage.removeItem("auth_token");
       sessionStorage.removeItem("auth_token");
-      window.location.reload();
+      // Only reload if a token existed but was rejected (expired/invalid).
+      // If there was no token, 401 is expected — don't trigger a reload loop.
+      if (hadToken) {
+        window.location.reload();
+      }
     }
     return Promise.reject(error);
   }

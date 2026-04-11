@@ -153,7 +153,8 @@ function App() {
       }
     } catch (error) {
       console.error("Auth error", error);
-      alert("Authentication failed");
+      const message = error.response?.data?.error || "Authentication failed. Check your connection and try again.";
+      alert(message);
     } finally {
       setAuthBusy(false);
     }
@@ -188,9 +189,10 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     fetchExpenses();
     fetchCredits();
-  }, [fetchExpenses, fetchCredits]);
+  }, [isAuthenticated, fetchExpenses, fetchCredits]);
 
   useEffect(() => {
     const query = filterName.trim().toLowerCase();
