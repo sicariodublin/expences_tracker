@@ -41,7 +41,7 @@ const fromB64Url = (str) => Buffer.from(str.replace(/-/g, "+").replace(/_/g, "/"
 
 const signJwt = (payload) => {
   const header = toB64Url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const body = toB64Url(JSON.stringify(payload));
+  const body = toB64Url(JSON.stringify({ ...payload, exp: Math.floor(Date.now() / 1000) + 7 * 24 * 3600 }));
   const sig = toB64Url(
     crypto.createHmac("sha256", JWT_SECRET).update(`${header}.${body}`).digest()
   );
@@ -55,7 +55,9 @@ const verifyJwt = (token) => {
       crypto.createHmac("sha256", JWT_SECRET).update(`${h}.${b}`).digest()
     );
     if (expected !== s) return null;
-    return JSON.parse(fromB64Url(b).toString("utf8"));
+    const payload = JSON.parse(fromB64Url(b).toString("utf8"));
+    if (payload.exp && Math.floor(Date.now() / 1000) > payload.exp) return null;
+    return payload;
   } catch (_) {
     return null;
   }
@@ -126,6 +128,7 @@ db.connect((err) => {
     return;
   }
   console.log("Connected to MySQL");
+  initAuthTables().catch((e) => console.error("Auth table init error:", e));
 });
 
 const query = (sql, params = []) => db.promise().query(sql, params);
@@ -160,12 +163,17 @@ const initAuthTables = async () => {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )`);
-    const [cols] = await query(
-      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'report_schedules' AND COLUMN_NAME = 'user_id'`,
-      [process.env.DB_NAME]
-    );
-    if (!cols || cols.length === 0) {
-      await query(`ALTER TABLE report_schedules ADD COLUMN user_id INT NULL`);
+    const tables = ['expenses', 'credits', 'budget_goals', 'expected_incomes', 'recurring_transactions', 'report_schedules'];
+    for (const tableName of tables) {
+      const [cols] = await query(
+        `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'user_id'`,
+        [process.env.DB_NAME, tableName]
+      );
+      if (!cols || cols.length === 0) {
+        await query(`ALTER TABLE ${tableName} ADD COLUMN user_id INT NULL`);
+        // Assign existing rows to the first user so data isn't lost on migration
+        await query(`UPDATE ${tableName} SET user_id = 1 WHERE user_id IS NULL`);
+      }
     }
   } catch (err) {
     console.error("Failed to init auth tables:", err);
@@ -749,13 +757,7 @@ app.post("/api/auth/login", async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: "Username and password required" });
     const [[user]] = await query("SELECT * FROM users WHERE username = ?", [username]);
-    if (!user) {
-      const password_hash = hashPassword(password);
-      const [result] = await query("INSERT INTO users (username, password_hash) VALUES (?, ?)", [username, password_hash]);
-      await query("INSERT INTO user_profiles (user_id) VALUES (?)", [result.insertId]);
-      const token = signJwt({ userId: result.insertId, username });
-      return res.status(201).json({ token, created: true });
-    }
+    if (!user) return res.status(401).json({ error: "Invalid credentials" });
     if (!verifyPassword(password, user.password_hash)) return res.status(401).json({ error: "Invalid credentials" });
     const token = signJwt({ userId: user.id, username });
     res.json({ token });
@@ -763,6 +765,10 @@ app.post("/api/auth/login", async (req, res) => {
     console.error("Login error:", err);
     res.status(500).json({ error: "Failed to login" });
   }
+});
+
+app.post("/api/auth/logout", authMiddleware, (req, res) => {
+  res.json({ message: "Logged out" });
 });
 
 // Profile
@@ -820,7 +826,7 @@ app.put("/api/email/settings", authMiddleware, async (req, res) => {
   }
 });
 
-app.post("/api/report-schedules/:id/send-now", async (req, res) => {
+app.post("/api/report-schedules/:id/send-now", authMiddleware, async (req, res) => {
   try {
     const scheduleId = Number(req.params.id);
     if (!Number.isFinite(scheduleId)) {
@@ -835,7 +841,7 @@ app.post("/api/report-schedules/:id/send-now", async (req, res) => {
 });
 
 // Add Expense
-app.post("/api/expenses", (req, res) => {
+app.post("/api/expenses", authMiddleware, (req, res) => {
   const { name, amount, date, category } = req.body;
   if (!name || !amount || !date || !category) {
     return res
@@ -843,20 +849,20 @@ app.post("/api/expenses", (req, res) => {
       .json({ error: "All fields are required, including category" });
   }
   const query =
-    "INSERT INTO expenses (name, amount, date, category) VALUES (?, ?, ?, ?)";
-  db.query(query, [name, amount, date, category], (err, result) => {
+    "INSERT INTO expenses (name, amount, date, category, user_id) VALUES (?, ?, ?, ?, ?)";
+  db.query(query, [name, amount, date, category, req.userId], (err, result) => {
     if (err) return res.status(500).json(err);
     res.json({ message: "Expense added", id: result.insertId });
   });
 });
 
 // Get Expenses (with Filters)
-app.get("/api/expenses", async (req, res) => {
+app.get("/api/expenses", authMiddleware, async (req, res) => {
   try {
     const { name, start, end } = req.query;
     let query = "SELECT * FROM expenses";
-    const conditions = [];
-    const params = [];
+    const conditions = ["user_id = ?"];
+    const params = [req.userId];
 
     if (name) {
       conditions.push("LOWER(name) LIKE ?");
@@ -887,16 +893,16 @@ app.get("/api/expenses", async (req, res) => {
 });
 
 // Delete Expense
-app.delete("/api/expenses/:id", (req, res) => {
-  const query = "DELETE FROM expenses WHERE id = ?";
-  db.query(query, [req.params.id], (err, result) => {
+app.delete("/api/expenses/:id", authMiddleware, (req, res) => {
+  const query = "DELETE FROM expenses WHERE id = ? AND user_id = ?";
+  db.query(query, [req.params.id, req.userId], (err, result) => {
     if (err) return res.status(500).json(err);
     res.json({ message: "Expense deleted" });
   });
 });
 
 // Update Expense
-app.put("/api/expenses/:id", (req, res) => {
+app.put("/api/expenses/:id", authMiddleware, (req, res) => {
   const { name, amount, date, category } = req.body;
   const fields = [];
   const params = [];
@@ -922,8 +928,8 @@ app.put("/api/expenses/:id", (req, res) => {
     return res.status(400).json({ error: "No fields provided to update" });
   }
 
-  const query = `UPDATE expenses SET ${fields.join(", ")} WHERE id = ?`;
-  params.push(req.params.id);
+  const query = `UPDATE expenses SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`;
+  params.push(req.params.id, req.userId);
 
   db.query(query, params, (err) => {
     if (err) {
@@ -961,7 +967,7 @@ app.put("/api/expenses/:id", (req, res) => {
 }); */
 
 // Add a new credit
-app.post("/api/credits", async (req, res) => {
+app.post("/api/credits", authMiddleware, async (req, res) => {
   const { name, amount, date, category } = req.body;
 
   if (!name || !amount || !date || !category) {
@@ -970,8 +976,8 @@ app.post("/api/credits", async (req, res) => {
 
   try {
     const query =
-      "INSERT INTO credits (name, amount, date, category) VALUES (?, ?, ?, ?)";
-    db.query(query, [name, amount, date, category], (err, result) => {
+      "INSERT INTO credits (name, amount, date, category, user_id) VALUES (?, ?, ?, ?, ?)";
+    db.query(query, [name, amount, date, category, req.userId], (err, result) => {
       if (err) {
         console.error("Database error:", err);
         return res.status(500).json({ error: "Database error" });
@@ -984,12 +990,12 @@ app.post("/api/credits", async (req, res) => {
   }
 });
 
-app.get("/api/credits", async (req, res) => {
+app.get("/api/credits", authMiddleware, async (req, res) => {
   try {
     const { name, start, end } = req.query;
     let query = "SELECT * FROM credits";
-    const conditions = [];
-    const params = [];
+    const conditions = ["user_id = ?"];
+    const params = [req.userId];
 
     if (name) {
       conditions.push("LOWER(name) LIKE ?");
@@ -1020,16 +1026,16 @@ app.get("/api/credits", async (req, res) => {
 });
 
 // Delete a credit
-app.delete("/api/credits/:id", (req, res) => {
+app.delete("/api/credits/:id", authMiddleware, (req, res) => {
   const { id } = req.params;
-  db.query("DELETE FROM credits WHERE id = ?", [id], (err, result) => {
+  db.query("DELETE FROM credits WHERE id = ? AND user_id = ?", [id, req.userId], (err, result) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ message: "Credit deleted successfully!" });
   });
 });
 
 // Update Credit
-app.put("/api/credits/:id", (req, res) => {
+app.put("/api/credits/:id", authMiddleware, (req, res) => {
   const { name, amount, date, category } = req.body;
   const fields = [];
   const params = [];
@@ -1055,8 +1061,8 @@ app.put("/api/credits/:id", (req, res) => {
     return res.status(400).json({ error: "No fields provided to update" });
   }
 
-  const query = `UPDATE credits SET ${fields.join(", ")} WHERE id = ?`;
-  params.push(req.params.id);
+  const query = `UPDATE credits SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`;
+  params.push(req.params.id, req.userId);
 
   db.query(query, params, (err) => {
     if (err) {
@@ -1068,10 +1074,10 @@ app.put("/api/credits/:id", (req, res) => {
 });
 
 // Get all budget goals
-app.get("/api/budget-goals", (req, res) => {
+app.get("/api/budget-goals", authMiddleware, (req, res) => {
   const query =
-    "SELECT * FROM budget_goals WHERE is_active = TRUE ORDER BY category";
-  db.query(query, (err, results) => {
+    "SELECT * FROM budget_goals WHERE is_active = TRUE AND user_id = ? ORDER BY category";
+  db.query(query, [req.userId], (err, results) => {
     if (err) {
       console.error("Error fetching budget goals:", err);
       return res.status(500).json({ error: "Database error" });
@@ -1081,7 +1087,7 @@ app.get("/api/budget-goals", (req, res) => {
 });
 
 // Add new budget goal
-app.post("/api/budget-goals", (req, res) => {
+app.post("/api/budget-goals", authMiddleware, (req, res) => {
   const { category, monthly_limit } = req.body;
   if (!category || !monthly_limit) {
     return res
@@ -1090,8 +1096,8 @@ app.post("/api/budget-goals", (req, res) => {
   }
 
   const query =
-    "INSERT INTO budget_goals (category, monthly_limit) VALUES (?, ?)";
-  db.query(query, [category, monthly_limit], (err, result) => {
+    "INSERT INTO budget_goals (category, monthly_limit, user_id) VALUES (?, ?, ?)";
+  db.query(query, [category, monthly_limit, req.userId], (err, result) => {
     if (err) {
       console.error("Error adding budget goal:", err);
       return res.status(500).json({ error: "Database error" });
@@ -1101,13 +1107,13 @@ app.post("/api/budget-goals", (req, res) => {
 });
 
 // Update budget goal
-app.put("/api/budget-goals/:id", (req, res) => {
+app.put("/api/budget-goals/:id", authMiddleware, (req, res) => {
   const { category, monthly_limit } = req.body;
   const { id } = req.params;
 
   const query =
-    "UPDATE budget_goals SET category = ?, monthly_limit = ? WHERE id = ?";
-  db.query(query, [category, monthly_limit, id], (err, result) => {
+    "UPDATE budget_goals SET category = ?, monthly_limit = ? WHERE id = ? AND user_id = ?";
+  db.query(query, [category, monthly_limit, id, req.userId], (err, result) => {
     if (err) {
       console.error("Error updating budget goal:", err);
       return res.status(500).json({ error: "Database error" });
@@ -1117,9 +1123,9 @@ app.put("/api/budget-goals/:id", (req, res) => {
 });
 
 // Delete budget goal
-app.delete("/api/budget-goals/:id", (req, res) => {
-  const query = "UPDATE budget_goals SET is_active = FALSE WHERE id = ?";
-  db.query(query, [req.params.id], (err, result) => {
+app.delete("/api/budget-goals/:id", authMiddleware, (req, res) => {
+  const query = "UPDATE budget_goals SET is_active = FALSE WHERE id = ? AND user_id = ?";
+  db.query(query, [req.params.id, req.userId], (err, result) => {
     if (err) {
       console.error("Error deleting budget goal:", err);
       return res.status(500).json({ error: "Database error" });
@@ -1129,12 +1135,12 @@ app.delete("/api/budget-goals/:id", (req, res) => {
 });
 
 // Get budget progress for current month
-app.get("/api/budget-progress", (req, res) => {
+app.get("/api/budget-progress", authMiddleware, (req, res) => {
   const selectedMonth =
     req.query.month || new Date().toISOString().split("T")[0];
 
   const query = `
-     SELECT 
+     SELECT
       bg.id,
       bg.category,
       CAST(bg.monthly_limit AS DECIMAL(10,2)) as monthly_limit,
@@ -1142,14 +1148,15 @@ app.get("/api/budget-progress", (req, res) => {
       CAST((bg.monthly_limit - COALESCE(SUM(e.amount), 0)) AS DECIMAL(10,2)) as remaining_amount,
       CAST(ROUND((COALESCE(SUM(e.amount), 0) / bg.monthly_limit) * 100, 2) AS DECIMAL(5,2)) as percentage_used
     FROM budget_goals bg
-    LEFT JOIN expenses e ON bg.category = e.category 
+    LEFT JOIN expenses e ON bg.category = e.category
       AND DATE_FORMAT(e.date, '%Y-%m') = ?
-    WHERE bg.is_active = TRUE
+      AND e.user_id = ?
+    WHERE bg.is_active = TRUE AND bg.user_id = ?
     GROUP BY bg.id, bg.category, bg.monthly_limit
     ORDER BY percentage_used DESC
   `;
 
-  db.query(query, [selectedMonth], (err, results) => {
+  db.query(query, [selectedMonth, req.userId, req.userId], (err, results) => {
     if (err) {
       console.error("Error fetching budget progress:", err);
       return res.status(500).json({ error: "Database error" });
@@ -1167,10 +1174,11 @@ app.get("/api/budget-progress", (req, res) => {
 });
 
 // Expected Income Endpoints
-app.get("/api/expected-incomes", async (req, res) => {
+app.get("/api/expected-incomes", authMiddleware, async (req, res) => {
   try {
     const [rows] = await query(
-      "SELECT * FROM expected_incomes ORDER BY name ASC"
+      "SELECT * FROM expected_incomes WHERE user_id = ? ORDER BY name ASC",
+      [req.userId]
     );
     res.json(rows);
   } catch (error) {
@@ -1179,7 +1187,7 @@ app.get("/api/expected-incomes", async (req, res) => {
   }
 });
 
-app.post("/api/expected-incomes", async (req, res) => {
+app.post("/api/expected-incomes", authMiddleware, async (req, res) => {
   try {
     const {
       name,
@@ -1197,9 +1205,9 @@ app.post("/api/expected-incomes", async (req, res) => {
     }
 
     const [result] = await query(
-      `INSERT INTO expected_incomes (name, category, expected_amount, frequency, due_day, notes)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [name, category, expected_amount, frequency, due_day, notes]
+      `INSERT INTO expected_incomes (name, category, expected_amount, frequency, due_day, notes, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [name, category, expected_amount, frequency, due_day, notes, req.userId]
     );
 
     res.status(201).json({ id: result.insertId });
@@ -1209,7 +1217,7 @@ app.post("/api/expected-incomes", async (req, res) => {
   }
 });
 
-app.put("/api/expected-incomes/:id", async (req, res) => {
+app.put("/api/expected-incomes/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -1225,7 +1233,7 @@ app.put("/api/expected-incomes/:id", async (req, res) => {
     await query(
       `UPDATE expected_incomes
        SET name = ?, category = ?, expected_amount = ?, frequency = ?, due_day = ?, notes = ?, last_received_date = ?, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
+       WHERE id = ? AND user_id = ?`,
       [
         name,
         category,
@@ -1235,6 +1243,7 @@ app.put("/api/expected-incomes/:id", async (req, res) => {
         notes,
         last_received_date,
         id,
+        req.userId,
       ]
     );
 
@@ -1245,10 +1254,10 @@ app.put("/api/expected-incomes/:id", async (req, res) => {
   }
 });
 
-app.delete("/api/expected-incomes/:id", async (req, res) => {
+app.delete("/api/expected-incomes/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    await query("DELETE FROM expected_incomes WHERE id = ?", [id]);
+    await query("DELETE FROM expected_incomes WHERE id = ? AND user_id = ?", [id, req.userId]);
     res.json({ message: "Expected income removed" });
   } catch (error) {
     console.error("Error deleting expected income:", error);
@@ -1257,7 +1266,7 @@ app.delete("/api/expected-incomes/:id", async (req, res) => {
 });
 
 // Income Reconciliation
-app.get("/api/income-reconciliation", async (req, res) => {
+app.get("/api/income-reconciliation", authMiddleware, async (req, res) => {
   try {
     const monthParam = req.query.month
       ? dayjs(req.query.month + "-01")
@@ -1269,7 +1278,7 @@ app.get("/api/income-reconciliation", async (req, res) => {
 
     const start = monthParam.startOf("month");
     const end = monthParam.endOf("month");
-    const [expected] = await query("SELECT * FROM expected_incomes");
+    const [expected] = await query("SELECT * FROM expected_incomes WHERE user_id = ?", [req.userId]);
 
     const results = [];
 
@@ -1277,9 +1286,9 @@ app.get("/api/income-reconciliation", async (req, res) => {
       const [credits] = await query(
         `SELECT id, name, amount, date, category
          FROM credits
-         WHERE category = ? AND date BETWEEN ? AND ?
+         WHERE category = ? AND date BETWEEN ? AND ? AND user_id = ?
          ORDER BY date ASC`,
-        [income.category, start.format("YYYY-MM-DD"), end.format("YYYY-MM-DD")]
+        [income.category, start.format("YYYY-MM-DD"), end.format("YYYY-MM-DD"), req.userId]
       );
 
       const receivedAmount = credits.reduce(
@@ -1328,10 +1337,11 @@ app.get("/api/income-reconciliation", async (req, res) => {
 });
 
 // Recurring transactions
-app.get("/api/recurring-transactions", async (req, res) => {
+app.get("/api/recurring-transactions", authMiddleware, async (req, res) => {
   try {
     const [rows] = await query(
-      "SELECT * FROM recurring_transactions ORDER BY is_active DESC, next_run_date ASC"
+      "SELECT * FROM recurring_transactions WHERE user_id = ? ORDER BY is_active DESC, next_run_date ASC",
+      [req.userId]
     );
     res.json(rows);
   } catch (error) {
@@ -1340,7 +1350,7 @@ app.get("/api/recurring-transactions", async (req, res) => {
   }
 });
 
-app.post("/api/recurring-transactions", async (req, res) => {
+app.post("/api/recurring-transactions", authMiddleware, async (req, res) => {
   try {
     const {
       type,
@@ -1378,8 +1388,8 @@ app.post("/api/recurring-transactions", async (req, res) => {
 
     const [result] = await query(
       `INSERT INTO recurring_transactions
-        (type, name, category, amount, frequency, day_of_month, weekday, next_run_date, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (type, name, category, amount, frequency, day_of_month, weekday, next_run_date, is_active, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         type,
         name,
@@ -1390,6 +1400,7 @@ app.post("/api/recurring-transactions", async (req, res) => {
         weekday,
         normalizedNextRun.format("YYYY-MM-DD"),
         is_active,
+        req.userId,
       ]
     );
 
@@ -1400,7 +1411,7 @@ app.post("/api/recurring-transactions", async (req, res) => {
   }
 });
 
-app.put("/api/recurring-transactions/:id", async (req, res) => {
+app.put("/api/recurring-transactions/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -1417,7 +1428,7 @@ app.put("/api/recurring-transactions/:id", async (req, res) => {
     await query(
       `UPDATE recurring_transactions
        SET name = ?, category = ?, amount = ?, frequency = ?, day_of_month = ?, weekday = ?, next_run_date = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
+       WHERE id = ? AND user_id = ?`,
       [
         name,
         category,
@@ -1428,6 +1439,7 @@ app.put("/api/recurring-transactions/:id", async (req, res) => {
         next_run_date,
         is_active,
         id,
+        req.userId,
       ]
     );
 
@@ -1438,10 +1450,10 @@ app.put("/api/recurring-transactions/:id", async (req, res) => {
   }
 });
 
-app.delete("/api/recurring-transactions/:id", async (req, res) => {
+app.delete("/api/recurring-transactions/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    await query("DELETE FROM recurring_transactions WHERE id = ?", [id]);
+    await query("DELETE FROM recurring_transactions WHERE id = ? AND user_id = ?", [id, req.userId]);
     res.json({ message: "Recurring transaction removed" });
   } catch (error) {
     console.error("Error deleting recurring transaction:", error);
@@ -1450,7 +1462,7 @@ app.delete("/api/recurring-transactions/:id", async (req, res) => {
 });
 
 // Report export & scheduling
-app.post("/api/reports/export", async (req, res) => {
+app.post("/api/reports/export", authMiddleware, async (req, res) => {
   try {
     const { format = "pdf", startDate, endDate } = req.body;
     const { start, end } = resolveRange(startDate, endDate);
@@ -1482,22 +1494,12 @@ app.post("/api/reports/export", async (req, res) => {
   }
 });
 
-app.get("/api/report-schedules", async (req, res) => {
+app.get("/api/report-schedules", authMiddleware, async (req, res) => {
   try {
-    const userId = (() => {
-      const header = req.headers.authorization || "";
-      const token = header.startsWith("Bearer ") ? header.slice(7) : null;
-      const payload = token ? verifyJwt(token) : null;
-      return payload?.userId || null;
-    })();
-    const [rows] = userId
-      ? await query(
-          "SELECT * FROM report_schedules WHERE user_id = ? ORDER BY is_active DESC, next_send_date ASC",
-          [userId]
-        )
-      : await query(
-          "SELECT * FROM report_schedules ORDER BY is_active DESC, next_send_date ASC"
-        );
+    const [rows] = await query(
+      "SELECT * FROM report_schedules WHERE user_id = ? ORDER BY is_active DESC, next_send_date ASC",
+      [req.userId]
+    );
     res.json(rows);
   } catch (error) {
     console.error("Error fetching report schedules:", error);
@@ -1613,7 +1615,7 @@ app.delete("/api/report-schedules/:id", authMiddleware, async (req, res) => {
 // CSV Upload (Import)
 const upload = multer({ dest: "uploads/" });
 
-app.post("/api/upload", upload.single("file"), (req, res, next) => {
+app.post("/api/upload", authMiddleware, upload.single("file"), (req, res, next) => {
   const filePath = req.file.path;
   const rows = [];
 
@@ -1636,7 +1638,7 @@ app.post("/api/upload", upload.single("file"), (req, res, next) => {
       let duplicates = 0;
 
       if (dryRun) {
-        fs.unlinkSync(filePath);
+        fs.unlink(filePath, () => {});
         const exp = normalized.filter((i) => i.type !== "income").length;
         const inc = normalized.filter((i) => i.type === "income").length;
         return res.status(200).json({
@@ -1671,8 +1673,8 @@ app.post("/api/upload", upload.single("file"), (req, res, next) => {
           await db
             .promise()
             .query(
-              `INSERT INTO ${table} (name, amount, date, category) VALUES (?, ?, ?, ?)`,
-              [name, amount, date, category]
+              `INSERT INTO ${table} (name, amount, date, category, user_id) VALUES (?, ?, ?, ?, ?)`,
+              [name, amount, date, category, req.userId]
             );
 
           if (item.type === "income") {
@@ -1687,11 +1689,11 @@ app.post("/api/upload", upload.single("file"), (req, res, next) => {
           await db.promise().rollback();
         } catch (_) {}
         console.error("Error importing CSV:", err);
-        fs.unlinkSync(filePath);
+        fs.unlink(filePath, () => {});
         return next(err);
       }
 
-      fs.unlinkSync(filePath);
+      fs.unlink(filePath, () => {});
       res.status(200).json({
         message: "Import completed",
         imported: normalized.length - duplicates,

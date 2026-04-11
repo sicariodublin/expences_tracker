@@ -47,18 +47,18 @@ const deriveCategory = (name) => {
   if (/LIDL|ALDI|TESCO|SUPERVALU|SPAR|MORE 4|POLSKI/i.test(n)) return "Groceries";
   if (/APPLEGREEN|PETROL|PARKING|ONLINE MOTOR|TOLL/i.test(n)) return "Carro";
   if (/AIB CARD PYMT|NAPS LOAN|PREMIUM CREDIT/i.test(n)) return "Loan/CreditCard";
-  if (/IRISH LIFE|BRECAN PHARM|GP|THE MEDICAL CENTER/i.test(n)) return "Healthcare";
-  if (/BORD GAIS|EIR|RENT|GAS|MORIATY REAL/i.test(n)) return "Utilities";
-  if (/FEES|TAX|STAMP DUTY/i.test(n)) return "Fees";
+  if (/IRISH LIFE|BRECAN PHARM|GP|GET HEALTH|THE MEDICAL CE/i.test(n)) return "Healthcare";
+  if (/BORD GAIS|EIR|RENT|GAS|MORIARTY REAL/i.test(n)) return "Utilities";
+  if (/FEE|TAX|STAMP DUTY/i.test(n)) return "Fees";
   if (/MICROSOFT|APPLE|GOOGLE|OPENAI|TRAE/i.test(n)) return "Licenses";
   if (/AMAZON/i.test(n)) return "Others";
   if (/APACHE PIZZA|SPAR EAST|EDDIE ROCKETS/i.test(n)) return "Eating Out";
   if (/LEAP CARD|IRISH RAIL/i.test(n)) return "Transport";
   if (/HUMMGROUP|FOOT LOCKER/i.test(n)) return "Gifts";
   if (/PLATINUM/i.test(n)) return "Gym";
-  if (/GUSTAVO|HPNUTRITION|SP DISCOUNT|IHERB|VITAMIN SHOP|MOV &|/i.test(n)) return "Self-Care";
-  if (/PREMIER LOTT|IKEA|PENNEYS|HUMMGROUP|AMAZON.IE/i.test(n)) return "Others";
-  if (/PYEU|FABIO|REV|SALARY/i.test(n)) return "Income";
+  if (/GUSTAVO|HP NUTRITION|SP DISCOUNT|IHERB|VITAMIN SHOP|MOV &/i.test(n)) return "Self-Care";
+  if (/PREMIER LOTTER|IKEA|PENNEYS|HUMMGROUP|AMAZON.IE|TEMU/i.test(n)) return "Others";
+  if (/PYEU00|CLAIMS|FABIO|REV|SALARY/i.test(n)) return "Income";
   return "Uncategorized";
 };
 
