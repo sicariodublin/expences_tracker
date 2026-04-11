@@ -106,10 +106,12 @@ function App() {
 
   const categories = EXPENSE_CATEGORIES;
 
-  // Edit modal state for inline category/name fixes
+  // Edit modal state
   const [editTarget, setEditTarget] = useState(null); // { type: 'expense'|'credit', record }
   const [editName, setEditName] = useState("");
   const [editCategory, setEditCategory] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editDate, setEditDate] = useState("");
 
   useEffect(() => {
     const root = document.documentElement;
@@ -189,45 +191,6 @@ function App() {
     fetchExpenses();
     fetchCredits();
   }, [fetchExpenses, fetchCredits]);
-
-  // Re-apply filters when data changes to keep the view consistent
-  useEffect(() => {
-    const query = filterName.trim().toLowerCase();
-
-    const matchQuery = (record) =>
-      !query ||
-      record.name.toLowerCase().includes(query) ||
-      record.category.toLowerCase().includes(query);
-
-    const matchStart = (recordDate) => !startDate || recordDate >= startDate;
-
-    const matchEnd = (recordDate) => !endDate || recordDate <= endDate;
-
-    const filteredExp = expenses.filter((exp) => {
-      const normalizedDate = exp.date?.slice(0, 10);
-      return (
-        matchQuery(exp) &&
-        matchStart(normalizedDate) &&
-        matchEnd(normalizedDate)
-      );
-    });
-
-    const filteredCreds = credits.filter((credit) => {
-      const normalizedDate = credit.date?.slice(0, 10);
-      return (
-        matchQuery(credit) &&
-        matchStart(normalizedDate) &&
-        matchEnd(normalizedDate)
-      );
-    });
-
-    setFilteredExpenses(filteredExp);
-    setFilteredCredits(filteredCreds);
-    // We intentionally do not update showExpenses here to preserve the user's view state
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expenses, credits]); // Only run when underlying data changes
-
-
 
   useEffect(() => {
     const query = filterName.trim().toLowerCase();
@@ -549,12 +512,16 @@ function App() {
     setEditTarget({ type, record });
     setEditName(record.name || "");
     setEditCategory(record.category || "");
+    setEditAmount(String(record.amount || ""));
+    setEditDate(record.date?.slice(0, 10) || "");
   };
 
   const closeEdit = () => {
     setEditTarget(null);
     setEditName("");
     setEditCategory("");
+    setEditAmount("");
+    setEditDate("");
   };
 
   const saveEdit = async () => {
@@ -563,8 +530,9 @@ function App() {
     try {
       const payload = {};
       if (editName && editName !== record.name) payload.name = editName;
-      if (editCategory && editCategory !== record.category)
-        payload.category = editCategory;
+      if (editCategory && editCategory !== record.category) payload.category = editCategory;
+      if (editAmount && String(editAmount) !== String(record.amount)) payload.amount = editAmount;
+      if (editDate && editDate !== record.date?.slice(0, 10)) payload.date = editDate;
       if (!Object.keys(payload).length) {
         closeEdit();
         return;
@@ -1194,6 +1162,27 @@ function App() {
                   className="form-input"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Amount</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="form-input"
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Date</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={editDate}
+                  max={TODAY}
+                  onChange={(e) => setEditDate(e.target.value)}
                 />
               </div>
               <div className="form-group">
