@@ -482,7 +482,8 @@ function App() {
       await apiClient.post("/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      await fetchExpenses();
+      await Promise.all([fetchExpenses(), fetchCredits()]);
+      setShowExpenses(true);
       setFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
