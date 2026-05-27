@@ -4,7 +4,7 @@ setlocal
 set "ROOT=%~dp0"
 
 echo Starting backend (API)...
-start "Expense Tracker - Backend" cmd /k "cd /d ""%ROOT%"" && npm run dev"
+start "Expense Tracker - Backend" cmd /k "cd /d ""%ROOT%backend"" && node server.js"
 
 echo Starting frontend (React)...
 start "Expense Tracker - Frontend" cmd /k "cd /d ""%ROOT%frontend"" && npm start"

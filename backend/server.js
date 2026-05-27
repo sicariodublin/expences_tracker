@@ -4,6 +4,7 @@ const cors = require("cors");
 const multer = require("multer");
 const csv = require("csv-parser");
 const fs = require("fs");
+const path = require("path");
 const dotenv = require("dotenv");
 const PDFDocument = require("pdfkit");
 const ExcelJS = require("exceljs");
@@ -13,25 +14,70 @@ const dayjs = require("dayjs");
 const crypto = require("crypto");
 const { normalizeBankRows } = require("./utils/csvNormalizer");
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, ".env") });
+dotenv.config({ path: path.join(__dirname, "..", ".env") });
 
 const app = express();
+
+const defaultAllowedOrigins = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+];
+
 const allowedOrigins = (process.env.CORS_ORIGIN || "")
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
-app.use(
-  cors({
-    origin: (origin, cb) => {
-      if (!origin) return cb(null, true);
-      if (!allowedOrigins.length || allowedOrigins.includes(origin)) {
-        return cb(null, true);
-      }
-      cb(new Error("Not allowed by CORS"));
-    },
-  })
-);
+
+const corsOptions = {
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+
+    if (defaultAllowedOrigins.includes(origin)) {
+      return cb(null, true);
+    }
+
+    if (!allowedOrigins.length || allowedOrigins.includes(origin)) {
+      return cb(null, true);
+    }
+
+    return cb(null, false);
+  },
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 app.use(express.json());
+
+const waitForDbReady = async (timeoutMs = 8000) => {
+  try {
+    await Promise.race([
+      dbReady,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("DB_NOT_READY")), timeoutMs)
+      ),
+    ]);
+    return true;
+  } catch (_) {
+    return false;
+  }
+};
+
+app.use(async (req, res, next) => {
+  if (req.method === "OPTIONS") return next();
+  if (!req.path.startsWith("/api/")) return next();
+  if (req.path === "/api/health") return next();
+
+  const ok = await waitForDbReady();
+  if (!ok) {
+    return res.status(503).json({ error: "Database unavailable" });
+  }
+
+  next();
+});
 
 const JWT_SECRET = process.env.JWT_SECRET || "change-me-secret";
 const EMAIL_SECRET_KEY = process.env.EMAIL_SECRET_KEY || null;
@@ -114,22 +160,60 @@ const authMiddleware = (req, res, next) => {
 
 
 // MySQL Connection
-const db = mysql.createConnection({
+const dbConfig = {
   host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT) || 3306,
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
-  dateStrings: true, // Ensure date strings are returned as strings
-});
+  connectTimeout: 5000,
+  dateStrings: true,
+};
 
-db.connect((err) => {
-  if (err) {
-    console.error("Database connection failed:", err);
-    return;
+let dbConnected = false;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const createDbConnection = () => {
+  const conn = mysql.createConnection(dbConfig);
+  conn.on("error", () => {
+    dbConnected = false;
+  });
+  return conn;
+};
+
+let db = createDbConnection();
+
+const connectDbOnce = () =>
+  new Promise((resolve, reject) => {
+    db.connect((err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      dbConnected = true;
+      console.log("Connected to MySQL");
+      initAuthTables().catch((e) => console.error("Auth table init error:", e));
+      resolve();
+    });
+  });
+
+const dbReady = (async () => {
+  while (!dbConnected) {
+    try {
+      await connectDbOnce();
+      return true;
+    } catch (err) {
+      console.error("Database connection failed:", err);
+      try {
+        db.destroy();
+      } catch (_) {}
+      db = createDbConnection();
+      await sleep(1000);
+    }
   }
-  console.log("Connected to MySQL");
-  initAuthTables().catch((e) => console.error("Auth table init error:", e));
-});
+  return true;
+})();
 
 const query = (sql, params = []) => db.promise().query(sql, params);
 
@@ -713,9 +797,13 @@ const initScheduleJobs = async () => {
   rows.forEach(scheduleReportJob);
 };
 
-processRecurringTransactions();
-cron.schedule("5 3 * * *", processRecurringTransactions);
-initScheduleJobs();
+dbReady
+  .then(async () => {
+    await processRecurringTransactions();
+    cron.schedule("5 3 * * *", processRecurringTransactions);
+    await initScheduleJobs();
+  })
+  .catch(() => {});
 
 app.get("/api/health", async (req, res, next) => {
   try {
