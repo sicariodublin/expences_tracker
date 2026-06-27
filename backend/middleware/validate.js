@@ -15,11 +15,7 @@ const positiveAmount = z.number({ invalid_type_error: "Amount must be a number" 
 
 // ── Auth ───────────────────────────────────────────────────────────────────
 const auth = z.object({
-  username: z
-    .string()
-    .min(3, "Username must be at least 3 characters")
-    .max(50)
-    .regex(/^[a-zA-Z0-9_.\-]+$/, "Username may only contain letters, numbers, _ . -"),
+  username: z.string().min(3, "Username must be at least 3 characters").max(100),
   password: z.string().min(8, "Password must be at least 8 characters").max(200),
 });
 
@@ -134,7 +130,7 @@ function validate(schema) {
     if (!result.success) {
       return res.status(400).json({
         error: "Validation failed",
-        details: result.error.errors.map((e) => ({
+        details: result.error.issues.map((e) => ({
           field: e.path.join(".") || "body",
           message: e.message,
         })),
