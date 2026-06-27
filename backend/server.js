@@ -12,7 +12,9 @@ const nodemailer = require("nodemailer");
 const cron = require("node-cron");
 const dayjs = require("dayjs");
 const crypto = require("crypto");
+const rateLimit = require("express-rate-limit");
 const { normalizeBankRows } = require("./utils/csvNormalizer");
+const { validate, schemas } = require("./middleware/validate");
 
 dotenv.config({ path: path.join(__dirname, ".env") });
 dotenv.config({ path: path.join(__dirname, "..", ".env") });
@@ -81,6 +83,14 @@ app.use(async (req, res, next) => {
 
 const JWT_SECRET = process.env.JWT_SECRET || "change-me-secret";
 const EMAIL_SECRET_KEY = process.env.EMAIL_SECRET_KEY || null;
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts, please try again later." },
+});
 
 const toB64Url = (buf) => Buffer.from(buf).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 const fromB64Url = (str) => Buffer.from(str.replace(/-/g, "+").replace(/_/g, "/"), "base64");
@@ -864,10 +874,9 @@ app.post("/api/email/test", authMiddleware, async (req, res) => {
 });
 
 // Auth: register/login
-app.post("/api/auth/register", async (req, res) => {
+app.post("/api/auth/register", authLimiter, validate(schemas.auth), async (req, res) => {
   try {
     const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: "Username and password required" });
     const [existing] = await query("SELECT id FROM users WHERE username = ?", [username]);
     if (existing.length) return res.status(409).json({ error: "Username already exists" });
     const password_hash = hashPassword(password);
@@ -885,10 +894,9 @@ app.post("/api/auth/register", async (req, res) => {
   }
 });
 
-app.post("/api/auth/login", async (req, res) => {
+app.post("/api/auth/login", authLimiter, validate(schemas.auth), async (req, res) => {
   try {
     const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: "Username and password required" });
     const [[user]] = await query("SELECT * FROM users WHERE username = ?", [username]);
     if (!user) return res.status(401).json({ error: "Invalid credentials" });
     if (!verifyPassword(password, user.password_hash)) return res.status(401).json({ error: "Invalid credentials" });
@@ -929,7 +937,7 @@ app.get("/api/profile", authMiddleware, async (req, res) => {
 });
 
 
-app.put("/api/profile", authMiddleware, async (req, res) => {
+app.put("/api/profile", authMiddleware, validate(schemas.profile), async (req, res) => {
   try {
     const { first_name, last_name, date_of_birth, currency, bank, avatar_url } = req.body;
     await query(
@@ -954,7 +962,7 @@ app.get("/api/email/settings", authMiddleware, async (req, res) => {
   }
 });
 
-app.put("/api/email/settings", authMiddleware, async (req, res) => {
+app.put("/api/email/settings", authMiddleware, validate(schemas.emailSettings), async (req, res) => {
   try {
     const { provider, smtp_host, smtp_port, smtp_user, smtp_pass, api_key, from_email } = req.body;
     const encPass = smtp_pass ? encryptSecret(smtp_pass) : null;
@@ -987,13 +995,8 @@ app.post("/api/report-schedules/:id/send-now", authMiddleware, async (req, res) 
 });
 
 // Add Expense
-app.post("/api/expenses", authMiddleware, (req, res) => {
+app.post("/api/expenses", authMiddleware, validate(schemas.transaction), (req, res) => {
   const { name, amount, date, category } = req.body;
-  if (!name || !amount || !date || !category) {
-    return res
-      .status(400)
-      .json({ error: "All fields are required, including category" });
-  }
   const query =
     "INSERT INTO expenses (name, amount, date, category, user_id) VALUES (?, ?, ?, ?, ?)";
   db.query(query, [name, amount, date, category, req.userId], (err, result) => {
@@ -1048,31 +1051,15 @@ app.delete("/api/expenses/:id", authMiddleware, (req, res) => {
 });
 
 // Update Expense
-app.put("/api/expenses/:id", authMiddleware, (req, res) => {
+app.put("/api/expenses/:id", authMiddleware, validate(schemas.transactionPatch), (req, res) => {
   const { name, amount, date, category } = req.body;
   const fields = [];
   const params = [];
 
-  if (name !== undefined) {
-    fields.push("name = ?");
-    params.push(name);
-  }
-  if (amount !== undefined) {
-    fields.push("amount = ?");
-    params.push(amount);
-  }
-  if (date !== undefined) {
-    fields.push("date = ?");
-    params.push(date);
-  }
-  if (category !== undefined) {
-    fields.push("category = ?");
-    params.push(category);
-  }
-
-  if (!fields.length) {
-    return res.status(400).json({ error: "No fields provided to update" });
-  }
+  if (name !== undefined) { fields.push("name = ?"); params.push(name); }
+  if (amount !== undefined) { fields.push("amount = ?"); params.push(amount); }
+  if (date !== undefined) { fields.push("date = ?"); params.push(date); }
+  if (category !== undefined) { fields.push("category = ?"); params.push(category); }
 
   const query = `UPDATE expenses SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`;
   params.push(req.params.id, req.userId);
@@ -1113,13 +1100,8 @@ app.put("/api/expenses/:id", authMiddleware, (req, res) => {
 }); */
 
 // Add a new credit
-app.post("/api/credits", authMiddleware, async (req, res) => {
+app.post("/api/credits", authMiddleware, validate(schemas.transaction), async (req, res) => {
   const { name, amount, date, category } = req.body;
-
-  if (!name || !amount || !date || !category) {
-    return res.status(400).json({ error: "All fields are required" });
-  }
-
   try {
     const query =
       "INSERT INTO credits (name, amount, date, category, user_id) VALUES (?, ?, ?, ?, ?)";
@@ -1181,31 +1163,15 @@ app.delete("/api/credits/:id", authMiddleware, (req, res) => {
 });
 
 // Update Credit
-app.put("/api/credits/:id", authMiddleware, (req, res) => {
+app.put("/api/credits/:id", authMiddleware, validate(schemas.transactionPatch), (req, res) => {
   const { name, amount, date, category } = req.body;
   const fields = [];
   const params = [];
 
-  if (name !== undefined) {
-    fields.push("name = ?");
-    params.push(name);
-  }
-  if (amount !== undefined) {
-    fields.push("amount = ?");
-    params.push(amount);
-  }
-  if (date !== undefined) {
-    fields.push("date = ?");
-    params.push(date);
-  }
-  if (category !== undefined) {
-    fields.push("category = ?");
-    params.push(category);
-  }
-
-  if (!fields.length) {
-    return res.status(400).json({ error: "No fields provided to update" });
-  }
+  if (name !== undefined) { fields.push("name = ?"); params.push(name); }
+  if (amount !== undefined) { fields.push("amount = ?"); params.push(amount); }
+  if (date !== undefined) { fields.push("date = ?"); params.push(date); }
+  if (category !== undefined) { fields.push("category = ?"); params.push(category); }
 
   const query = `UPDATE credits SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`;
   params.push(req.params.id, req.userId);
@@ -1233,14 +1199,8 @@ app.get("/api/budget-goals", authMiddleware, (req, res) => {
 });
 
 // Add new budget goal
-app.post("/api/budget-goals", authMiddleware, (req, res) => {
+app.post("/api/budget-goals", authMiddleware, validate(schemas.budgetGoal), (req, res) => {
   const { category, monthly_limit } = req.body;
-  if (!category || !monthly_limit) {
-    return res
-      .status(400)
-      .json({ error: "Category and monthly limit are required" });
-  }
-
   const query =
     "INSERT INTO budget_goals (category, monthly_limit, user_id) VALUES (?, ?, ?)";
   db.query(query, [category, monthly_limit, req.userId], (err, result) => {
@@ -1253,7 +1213,7 @@ app.post("/api/budget-goals", authMiddleware, (req, res) => {
 });
 
 // Update budget goal
-app.put("/api/budget-goals/:id", authMiddleware, (req, res) => {
+app.put("/api/budget-goals/:id", authMiddleware, validate(schemas.budgetGoalPatch), (req, res) => {
   const { category, monthly_limit } = req.body;
   const { id } = req.params;
 
@@ -1333,7 +1293,7 @@ app.get("/api/expected-incomes", authMiddleware, async (req, res) => {
   }
 });
 
-app.post("/api/expected-incomes", authMiddleware, async (req, res) => {
+app.post("/api/expected-incomes", authMiddleware, validate(schemas.expectedIncome), async (req, res) => {
   try {
     const {
       name,
@@ -1343,12 +1303,6 @@ app.post("/api/expected-incomes", authMiddleware, async (req, res) => {
       due_day = null,
       notes = null,
     } = req.body;
-
-    if (!name || !category || !expected_amount) {
-      return res
-        .status(400)
-        .json({ error: "Name, category and expected amount are required." });
-    }
 
     const [result] = await query(
       `INSERT INTO expected_incomes (name, category, expected_amount, frequency, due_day, notes, user_id)
@@ -1363,7 +1317,7 @@ app.post("/api/expected-incomes", authMiddleware, async (req, res) => {
   }
 });
 
-app.put("/api/expected-incomes/:id", authMiddleware, async (req, res) => {
+app.put("/api/expected-incomes/:id", authMiddleware, validate(schemas.expectedIncomePatch), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -1496,7 +1450,7 @@ app.get("/api/recurring-transactions", authMiddleware, async (req, res) => {
   }
 });
 
-app.post("/api/recurring-transactions", authMiddleware, async (req, res) => {
+app.post("/api/recurring-transactions", authMiddleware, validate(schemas.recurringTransaction), async (req, res) => {
   try {
     const {
       type,
@@ -1509,12 +1463,6 @@ app.post("/api/recurring-transactions", authMiddleware, async (req, res) => {
       startDate = null,
       is_active = true,
     } = req.body;
-
-    if (!type || !name || !category || !amount) {
-      return res.status(400).json({
-        error: "Type, name, category, and amount are required for recurring transactions.",
-      });
-    }
 
     const initialDate = startDate ? dayjs(startDate) : dayjs();
     const nextRunDate = initialDate.isValid()
@@ -1557,7 +1505,7 @@ app.post("/api/recurring-transactions", authMiddleware, async (req, res) => {
   }
 });
 
-app.put("/api/recurring-transactions/:id", authMiddleware, async (req, res) => {
+app.put("/api/recurring-transactions/:id", authMiddleware, validate(schemas.recurringTransactionPatch), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -1608,7 +1556,7 @@ app.delete("/api/recurring-transactions/:id", authMiddleware, async (req, res) =
 });
 
 // Report export & scheduling
-app.post("/api/reports/export", authMiddleware, async (req, res) => {
+app.post("/api/reports/export", authMiddleware, validate(schemas.reportExport), async (req, res) => {
   try {
     const { format = "pdf", startDate, endDate } = req.body;
     const { start, end } = resolveRange(startDate, endDate);
@@ -1653,7 +1601,7 @@ app.get("/api/report-schedules", authMiddleware, async (req, res) => {
   }
 });
 
-app.post("/api/report-schedules", authMiddleware, async (req, res) => {
+app.post("/api/report-schedules", authMiddleware, validate(schemas.reportSchedule), async (req, res) => {
   try {
     const {
       recipient_email,
@@ -1664,10 +1612,6 @@ app.post("/api/report-schedules", authMiddleware, async (req, res) => {
       include_recurring = true,
       next_send_date,
     } = req.body;
-
-    if (!recipient_email) {
-      return res.status(400).json({ error: "Recipient email is required." });
-    }
 
     const initialSendDate = next_send_date
       ? dayjs(next_send_date)
@@ -1704,7 +1648,7 @@ app.post("/api/report-schedules", authMiddleware, async (req, res) => {
   }
 });
 
-app.put("/api/report-schedules/:id", authMiddleware, async (req, res) => {
+app.put("/api/report-schedules/:id", authMiddleware, validate(schemas.reportSchedulePatch), async (req, res) => {
   try {
     const { id } = req.params;
     const {
