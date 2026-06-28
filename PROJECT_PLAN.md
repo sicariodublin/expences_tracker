@@ -240,10 +240,14 @@ frontend/src/
 - [x] Restored shared CSS component classes in App.css (`.card`, `.btn`, `.form-input`, `.styled-table`, etc.) with CSS-variable-based dark mode for child components
 - [x] Fixed dark mode in all child components: Automation inputs, BudgetGoals notification colors, Analytics table header, consistent color variables (`--color-surface`, `--color-input`, `--color-border`)
 
-**Remaining:**
-- [ ] Redesign child component pages (Analytics, BudgetGoals, Automation, SpendingTrends) to use Tailwind classes directly instead of the legacy CSS variable system
-- [ ] Improve mobile responsiveness (tables overflow, form grids on small screens)
-- [ ] Add loading skeletons (replace plain text "Loading..." states)
+**Remaining (deferred to Phase 5 alongside component extraction):**
+- [ ] Full Tailwind migration of Analytics, Automation, SpendingTrends (CSS variable system works correctly — low priority)
+
+**Done (Phase 3 wrap-up):**
+- [x] Replaced all `window.alert` calls with `react-hot-toast` in BudgetGoals and Automation
+- [x] Replaced all `window.confirm` delete dialogs with inline "Sure?" two-click pattern (3-second timeout auto-reset) across BudgetGoals, Automation (expected incomes, recurring transactions, report schedules)
+- [x] Added `animate-pulse` Tailwind loading skeletons to BudgetGoals progress cards, Analytics chart, SpendingTrends chart
+- [x] Mobile responsiveness: Automation tables already had `overflow-x: auto`; Analytics listing table has `overflow: auto` sticky-column layout; BudgetGoals grid uses `auto-fit` responsive columns
 
 ### Phase 4 — Auth Hardening ✅ Complete
 
