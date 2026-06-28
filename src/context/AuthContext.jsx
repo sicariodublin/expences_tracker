@@ -15,6 +15,10 @@ export function AuthProvider({ children }) {
   const [rememberMe, setRememberMe]     = useState(true);
   const [authBusy, setAuthBusy]         = useState(false);
 
+  // Forgot-password flow
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent]   = useState(false);
+
   const storeToken = (token) => {
     if (rememberMe) {
       localStorage.setItem("auth_token", token);
@@ -58,13 +62,32 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("auth_token");
-    sessionStorage.removeItem("auth_token");
-    setIsAuthenticated(false);
-    setAuthUsername("");
-    setAuthPassword("");
-    setAuthRepeat("");
+  const handleLogout = async () => {
+    try {
+      await apiClient.post("/auth/logout");
+    } catch (_) {
+      // Always clear local state even if the server call fails
+    } finally {
+      localStorage.removeItem("auth_token");
+      sessionStorage.removeItem("auth_token");
+      setIsAuthenticated(false);
+      setAuthUsername("");
+      setAuthPassword("");
+      setAuthRepeat("");
+    }
+  };
+
+  const handleForgotSubmit = async (e) => {
+    e.preventDefault();
+    setAuthBusy(true);
+    try {
+      await apiClient.post("/auth/forgot-password", { email: forgotEmail });
+    } catch (_) {
+      // Show success regardless to prevent email enumeration
+    } finally {
+      setForgotSent(true);
+      setAuthBusy(false);
+    }
   };
 
   return (
@@ -79,6 +102,9 @@ export function AuthProvider({ children }) {
         authBusy,
         handleAuthSubmit,
         handleLogout,
+        forgotEmail, setForgotEmail,
+        forgotSent, setForgotSent,
+        handleForgotSubmit,
       }}
     >
       {children}

@@ -42,108 +42,190 @@ function AuthModal() {
     rememberMe,   setRememberMe,
     authBusy,
     handleAuthSubmit,
+    forgotEmail, setForgotEmail,
+    forgotSent, setForgotSent,
+    handleForgotSubmit,
   } = useAuth();
+
+  const switchMode = (mode) => {
+    setAuthMode(mode);
+    setForgotSent(false);
+    setForgotEmail("");
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
       <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-700">
-        <div className="px-6 pt-8 pb-2 text-center">
-          <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center mx-auto mb-4">
-            <Wallet className="w-6 h-6 text-white" />
-          </div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-            {authMode === "register" ? "Create account" : "Welcome back"}
-          </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            {authMode === "register"
-              ? "Sign up to start tracking"
-              : "Sign in to your account"}
-          </p>
-        </div>
 
-        <form onSubmit={handleAuthSubmit} className="px-6 py-5 space-y-3">
-          <div>
-            <label className={labelCls}>Email</label>
-            <input
-              type="text"
-              className={inputCls}
-              placeholder="your@email.com"
-              value={authUsername}
-              onChange={(e) => setAuthUsername(e.target.value)}
-              autoComplete="username"
-            />
-          </div>
-          <div>
-            <label className={labelCls}>Password</label>
-            <input
-              type="password"
-              className={inputCls}
-              placeholder="••••••••"
-              value={authPassword}
-              onChange={(e) => setAuthPassword(e.target.value)}
-              autoComplete={authMode === "register" ? "new-password" : "current-password"}
-            />
-          </div>
-          {authMode === "register" && (
-            <div>
-              <label className={labelCls}>Confirm Password</label>
-              <input
-                type="password"
-                className={inputCls}
-                placeholder="••••••••"
-                value={authRepeat}
-                onChange={(e) => setAuthRepeat(e.target.value)}
-                autoComplete="new-password"
-              />
+        {/* ── Forgot password ── */}
+        {authMode === "forgot" ? (
+          <>
+            <div className="px-6 pt-8 pb-2 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center mx-auto mb-4">
+                <Wallet className="w-6 h-6 text-white" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Reset password</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                {forgotSent ? "Check your inbox." : "We'll email you a reset link."}
+              </p>
             </div>
-          )}
-          <div className="flex items-center pt-1">
-            <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer">
-              <input
-                type="checkbox"
-                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-              />
-              Remember me
-            </label>
-          </div>
-          <button
-            type="submit"
-            className={btnPrimary + " w-full justify-center py-2.5 mt-1"}
-            disabled={authBusy}
-          >
-            {authBusy
-              ? "Please wait…"
-              : authMode === "register"
-              ? "Create Account"
-              : "Sign In"}
-          </button>
-        </form>
 
-        <div className="px-6 pb-6 text-center text-sm text-slate-500 dark:text-slate-400">
-          {authMode === "register" ? (
-            <>
-              Already have an account?{" "}
+            {forgotSent ? (
+              <div className="px-6 py-5 text-center space-y-4">
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  If <strong>{forgotEmail}</strong> is registered, a reset link is on its way.
+                </p>
+                <button
+                  className={btnPrimary + " w-full justify-center py-2.5"}
+                  onClick={() => switchMode("login")}
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotSubmit} className="px-6 py-5 space-y-3">
+                <div>
+                  <label className={labelCls}>Email</label>
+                  <input
+                    type="email"
+                    className={inputCls}
+                    placeholder="your@email.com"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    autoComplete="email"
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className={btnPrimary + " w-full justify-center py-2.5 mt-1"}
+                  disabled={authBusy}
+                >
+                  {authBusy ? "Sending…" : "Send Reset Link"}
+                </button>
+              </form>
+            )}
+
+            <div className="px-6 pb-6 text-center text-sm text-slate-500 dark:text-slate-400">
               <button
                 className="text-blue-600 dark:text-blue-400 font-medium hover:underline"
-                onClick={() => setAuthMode("login")}
+                onClick={() => switchMode("login")}
               >
-                Sign in
+                Back to Sign In
               </button>
-            </>
-          ) : (
-            <>
-              No account yet?{" "}
+            </div>
+          </>
+        ) : (
+          /* ── Login / Register ── */
+          <>
+            <div className="px-6 pt-8 pb-2 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center mx-auto mb-4">
+                <Wallet className="w-6 h-6 text-white" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                {authMode === "register" ? "Create account" : "Welcome back"}
+              </h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                {authMode === "register"
+                  ? "Sign up to start tracking"
+                  : "Sign in to your account"}
+              </p>
+            </div>
+
+            <form onSubmit={handleAuthSubmit} className="px-6 py-5 space-y-3">
+              <div>
+                <label className={labelCls}>Email</label>
+                <input
+                  type="text"
+                  className={inputCls}
+                  placeholder="your@email.com"
+                  value={authUsername}
+                  onChange={(e) => setAuthUsername(e.target.value)}
+                  autoComplete="username"
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Password</label>
+                <input
+                  type="password"
+                  className={inputCls}
+                  placeholder="••••••••"
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  autoComplete={authMode === "register" ? "new-password" : "current-password"}
+                />
+              </div>
+              {authMode === "register" && (
+                <div>
+                  <label className={labelCls}>Confirm Password</label>
+                  <input
+                    type="password"
+                    className={inputCls}
+                    placeholder="••••••••"
+                    value={authRepeat}
+                    onChange={(e) => setAuthRepeat(e.target.value)}
+                    autoComplete="new-password"
+                  />
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-1">
+                <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                  />
+                  Remember me
+                </label>
+                {authMode === "login" && (
+                  <button
+                    type="button"
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                    onClick={() => switchMode("forgot")}
+                  >
+                    Forgot password?
+                  </button>
+                )}
+              </div>
               <button
-                className="text-blue-600 dark:text-blue-400 font-medium hover:underline"
-                onClick={() => setAuthMode("register")}
+                type="submit"
+                className={btnPrimary + " w-full justify-center py-2.5 mt-1"}
+                disabled={authBusy}
               >
-                Create one
+                {authBusy
+                  ? "Please wait…"
+                  : authMode === "register"
+                  ? "Create Account"
+                  : "Sign In"}
               </button>
-            </>
-          )}
-        </div>
+            </form>
+
+            <div className="px-6 pb-6 text-center text-sm text-slate-500 dark:text-slate-400">
+              {authMode === "register" ? (
+                <>
+                  Already have an account?{" "}
+                  <button
+                    className="text-blue-600 dark:text-blue-400 font-medium hover:underline"
+                    onClick={() => switchMode("login")}
+                  >
+                    Sign in
+                  </button>
+                </>
+              ) : (
+                <>
+                  No account yet?{" "}
+                  <button
+                    className="text-blue-600 dark:text-blue-400 font-medium hover:underline"
+                    onClick={() => switchMode("register")}
+                  >
+                    Create one
+                  </button>
+                </>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
