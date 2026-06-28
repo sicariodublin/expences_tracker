@@ -707,8 +707,13 @@ const Analytics = () => {
 
       <section className="analytics-chart card">
         {loading ? (
-          <div className="loading-state">
-            <p>Loading analytics data…</p>
+          <div className="animate-pulse flex flex-col gap-3 min-h-[340px] justify-center px-4">
+            <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/4" />
+            <div className="h-56 bg-slate-200 dark:bg-slate-700 rounded-lg" />
+            <div className="flex gap-4">
+              <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-20" />
+              <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-20" />
+            </div>
           </div>
         ) : activeDataset === 0 && chartType !== "listing" ? (
           <div className="empty-state">

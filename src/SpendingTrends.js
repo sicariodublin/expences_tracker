@@ -369,8 +369,14 @@ const SpendingTrends = () => {
 
       <section className="card trends-chart">
         {loading ? (
-          <div className="loading-state">
-            <p>Loading spending trends…</p>
+          <div className="animate-pulse flex flex-col gap-3 min-h-[300px] justify-center px-4">
+            <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/3" />
+            <div className="h-52 bg-slate-200 dark:bg-slate-700 rounded-lg" />
+            <div className="flex gap-4">
+              <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-24" />
+              <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-24" />
+              <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-24" />
+            </div>
           </div>
         ) : (
           <div className="chart-wrapper">

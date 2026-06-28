@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "react-hot-toast";
 import "./BudgetGoals.css";
 import apiClient from "./api/apiClient";
 import { EXPENSE_CATEGORIES } from "./constants/categories";
@@ -64,6 +65,7 @@ const BudgetGoals = () => {
   );
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
   const categories = EXPENSE_CATEGORIES;
 
@@ -109,7 +111,7 @@ const BudgetGoals = () => {
   const handleAddGoal = async (event) => {
     event.preventDefault();
     if (!newGoal.category || !newGoal.monthly_limit) {
-      alert("Please choose a category and enter a monthly limit.");
+      toast.error("Please choose a category and enter a monthly limit.");
       return;
     }
 
@@ -120,7 +122,7 @@ const BudgetGoals = () => {
       fetchBudgetProgress();
     } catch (error) {
       console.error("Error adding budget goal:", error);
-      alert("Could not add the budget goal. Please try again.");
+      toast.error("Could not add the budget goal. Please try again.");
     }
   };
 
@@ -139,21 +141,23 @@ const BudgetGoals = () => {
       fetchBudgetProgress();
     } catch (error) {
       console.error("Error updating budget goal:", error);
-      alert("Could not update the budget goal. Please try again.");
+      toast.error("Could not update the budget goal. Please try again.");
     }
   };
 
   const handleDeleteGoal = async (id) => {
-    if (!window.confirm("Delete this budget goal?")) {
+    if (pendingDeleteId !== id) {
+      setPendingDeleteId(id);
+      setTimeout(() => setPendingDeleteId((cur) => (cur === id ? null : cur)), 3000);
       return;
     }
-
+    setPendingDeleteId(null);
     try {
       await apiClient.delete(`/budget-goals/${id}`);
       fetchBudgetProgress();
     } catch (error) {
       console.error("Error deleting budget goal:", error);
-      alert("Could not delete the budget goal. Please try again.");
+      toast.error("Could not delete the budget goal. Please try again.");
     }
   };
 
@@ -298,8 +302,21 @@ const BudgetGoals = () => {
       </section>
 
       {loading ? (
-        <div className="loading-state">
-          <p>Loading budget progress…</p>
+        <div className="budget-progress-grid">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="budget-card animate-pulse">
+              <div className="flex justify-between">
+                <div className="h-5 bg-slate-200 dark:bg-slate-700 rounded w-28" />
+                <div className="h-5 bg-slate-200 dark:bg-slate-700 rounded w-20" />
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded" />
+                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded" />
+                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
+              </div>
+              <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded-full" />
+            </div>
+          ))}
         </div>
       ) : (
         <div className="budget-progress-grid">
@@ -447,7 +464,7 @@ const BudgetGoals = () => {
                     className="btn btn-danger btn-sm"
                     onClick={() => handleDeleteGoal(progress.id)}
                   >
-                    Delete
+                    {pendingDeleteId === progress.id ? "Sure?" : "Delete"}
                   </button>
                 </div>
               </article>

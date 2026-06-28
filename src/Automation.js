@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "react-hot-toast";
 import "./Automation.css";
 import apiClient from "./api/apiClient";
 import { EXPENSE_CATEGORIES } from "./constants/categories";
@@ -104,6 +105,10 @@ const Automation = () => {
   const [isSendingTest, setSendingTest] = useState(false);
   const [sendingScheduleId, setSendingScheduleId] = useState(null);
 
+  const [confirmIncomeId, setConfirmIncomeId] = useState(null);
+  const [confirmRecurringId, setConfirmRecurringId] = useState(null);
+  const [confirmScheduleId, setConfirmScheduleId] = useState(null);
+
   const [emailProvider, setEmailProvider] = useState("");
   const [smtpHost, setSmtpHost] = useState("");
   const [smtpPort, setSmtpPort] = useState(587);
@@ -135,11 +140,11 @@ const Automation = () => {
         from_email: fromEmail,
       };
       await apiClient.put("/email/settings", payload);
-      alert("Email settings saved");
+      toast.success("Email settings saved.");
       fetchEmailStatus();
     } catch (error) {
       console.error("Save email settings error", error);
-      alert("Failed to save email settings");
+      toast.error("Failed to save email settings.");
     }
   };
 
@@ -175,21 +180,21 @@ const Automation = () => {
 
   const sendTestEmail = async () => {
     if (!testEmail) {
-      alert("Enter a recipient email for the test.");
+      toast.error("Enter a recipient email for the test.");
       return;
     }
     setSendingTest(true);
     try {
       const { data } = await apiClient.post("/email/test", { to: testEmail });
       if (data && data.previewUrl) {
-        alert(`Test email sent. Preview: ${data.previewUrl}`);
+        toast.success("Test email sent. Opening preview…");
         window.open(data.previewUrl, "_blank");
       } else {
-        alert("Test email triggered. Check your inbox.");
+        toast.success("Test email triggered. Check your inbox.");
       }
     } catch (error) {
       console.error("Failed to send test email", error);
-      alert("Unable to send test email. Check server logs and configuration.");
+      toast.error("Unable to send test email. Check server logs and configuration.");
     } finally {
       setSendingTest(false);
     }
@@ -199,12 +204,12 @@ const Automation = () => {
     setSendingScheduleId(id);
     try {
       await apiClient.post(`/report-schedules/${id}/send-now`);
-      alert("Report sent.");
+      toast.success("Report sent.");
       loadReportSchedules();
       fetchEmailStatus();
     } catch (error) {
       console.error("Failed to send report now", error);
-      alert("Unable to send report now. Ensure email is verified and check logs.");
+      toast.error("Unable to send report now. Ensure email is verified and check logs.");
     } finally {
       setSendingScheduleId(null);
     }
@@ -264,7 +269,7 @@ const Automation = () => {
       loadReconciliation();
     } catch (error) {
       console.error("Failed to save expected income", error);
-      alert("Unable to save expected income. Please try again.");
+      toast.error("Unable to save expected income. Please try again.");
     }
   };
 
@@ -281,13 +286,19 @@ const Automation = () => {
   };
 
   const handleIncomeDelete = async (id) => {
-    if (!window.confirm("Delete this expected income?")) return;
+    if (confirmIncomeId !== id) {
+      setConfirmIncomeId(id);
+      setTimeout(() => setConfirmIncomeId((cur) => (cur === id ? null : cur)), 3000);
+      return;
+    }
+    setConfirmIncomeId(null);
     try {
       await apiClient.delete(`/expected-incomes/${id}`);
       loadExpectedIncomes();
       loadReconciliation();
     } catch (error) {
       console.error("Failed to delete expected income", error);
+      toast.error("Could not delete. Please try again.");
     }
   };
 
@@ -310,17 +321,23 @@ const Automation = () => {
       loadRecurringTransactions();
     } catch (error) {
       console.error("Failed to create recurring transaction", error);
-      alert("Unable to create recurring transaction. Please try again.");
+      toast.error("Unable to create recurring transaction. Please try again.");
     }
   };
 
   const handleRecurringDelete = async (id) => {
-    if (!window.confirm("Delete this recurring transaction?")) return;
+    if (confirmRecurringId !== id) {
+      setConfirmRecurringId(id);
+      setTimeout(() => setConfirmRecurringId((cur) => (cur === id ? null : cur)), 3000);
+      return;
+    }
+    setConfirmRecurringId(null);
     try {
       await apiClient.delete(`/recurring-transactions/${id}`);
       loadRecurringTransactions();
     } catch (error) {
       console.error("Failed to delete recurring transaction", error);
+      toast.error("Could not delete. Please try again.");
     }
   };
 
@@ -344,7 +361,7 @@ const Automation = () => {
       downloadBlob(data, filename);
     } catch (error) {
       console.error("Failed to export report", error);
-      alert("Unable to export report. Please try again.");
+      toast.error("Unable to export report. Please try again.");
     } finally {
       setExporting(false);
     }
@@ -358,17 +375,23 @@ const Automation = () => {
       loadReportSchedules();
     } catch (error) {
       console.error("Failed to create schedule", error);
-      alert("Unable to create report schedule. Please try again.");
+      toast.error("Unable to create report schedule. Please try again.");
     }
   };
 
   const handleScheduleDelete = async (id) => {
-    if (!window.confirm("Delete this schedule?")) return;
+    if (confirmScheduleId !== id) {
+      setConfirmScheduleId(id);
+      setTimeout(() => setConfirmScheduleId((cur) => (cur === id ? null : cur)), 3000);
+      return;
+    }
+    setConfirmScheduleId(null);
     try {
       await apiClient.delete(`/report-schedules/${id}`);
       loadReportSchedules();
     } catch (error) {
       console.error("Failed to delete schedule", error);
+      toast.error("Could not delete. Please try again.");
     }
   };
 
@@ -510,7 +533,7 @@ const Automation = () => {
                         className="btn btn-danger btn-sm"
                         onClick={() => handleIncomeDelete(income.id)}
                       >
-                        Delete
+                        {confirmIncomeId === income.id ? "Sure?" : "Delete"}
                       </button>
                     </div>
                   </td>
@@ -745,7 +768,7 @@ const Automation = () => {
                       className="btn btn-danger btn-sm"
                       onClick={() => handleRecurringDelete(tx.id)}
                     >
-                      Delete
+                      {confirmRecurringId === tx.id ? "Sure?" : "Delete"}
                     </button>
                   </td>
                 </tr>
@@ -984,7 +1007,7 @@ const Automation = () => {
                       className="btn btn-danger btn-sm"
                       onClick={() => handleScheduleDelete(schedule.id)}
                     >
-                      Delete
+                      {confirmScheduleId === schedule.id ? "Sure?" : "Delete"}
                     </button>
                   </td>
                   <td>
