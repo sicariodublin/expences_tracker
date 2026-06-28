@@ -97,6 +97,24 @@ const initAuthTables = async () => {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )`);
+    await query(`CREATE TABLE IF NOT EXISTS refresh_tokens (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      token_hash VARCHAR(64) NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_refresh_hash (token_hash),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      token_hash VARCHAR(64) NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      used_at TIMESTAMP NULL,
+      UNIQUE KEY uq_reset_hash (token_hash),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`);
     for (const table of USER_SCOPED_TABLES) {
       try {
         await query(`ALTER TABLE ${table} ADD COLUMN user_id INT NULL`);
@@ -128,4 +146,4 @@ const waitForDbReady = async (timeoutMs = 8000) => {
   }
 };
 
-module.exports = { db, query, dbReady, waitForDbReady, claimOrphanedData, maybeClaimOrphanedData };
+module.exports = { db, query, dbReady, waitForDbReady, claimOrphanedData, maybeClaimOrphanedData, USER_SCOPED_TABLES };

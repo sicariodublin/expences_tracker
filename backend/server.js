@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const path = require("path");
 const dotenv = require("dotenv");
 
@@ -24,9 +25,11 @@ app.use(cors({
     if (!extraOrigins.length || extraOrigins.includes(origin)) return cb(null, true);
     cb(null, false);
   },
+  credentials: true,
   optionsSuccessStatus: 204,
 }));
-app.options("*", cors());
+app.options("*", cors({ credentials: true }));
+app.use(cookieParser());
 app.use(express.json());
 
 // Block API requests until DB is ready

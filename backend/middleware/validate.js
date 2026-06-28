@@ -19,6 +19,15 @@ const auth = z.object({
   password: z.string().min(8, "Password must be at least 8 characters").max(200),
 });
 
+const forgotPassword = z.object({
+  email: z.string().email("Must be a valid email address").max(100),
+});
+
+const resetPassword = z.object({
+  token: z.string().min(1, "Token is required"),
+  password: z.string().min(8, "Password must be at least 8 characters").max(200),
+});
+
 // ── Transactions ───────────────────────────────────────────────────────────
 const transaction = z.object({
   name: z.string().min(1).max(200),
@@ -145,6 +154,8 @@ module.exports = {
   validate,
   schemas: {
     auth,
+    forgotPassword,
+    resetPassword,
     transaction,
     transactionPatch,
     budgetGoal,

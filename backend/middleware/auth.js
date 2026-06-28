@@ -2,6 +2,15 @@ const crypto = require("crypto");
 
 const JWT_SECRET = process.env.JWT_SECRET || "change-me-secret";
 
+const REFRESH_COOKIE_NAME = "refresh_token";
+const REFRESH_COOKIE_OPTS = {
+  httpOnly: true,
+  sameSite: "strict",
+  path: "/api/auth",
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  secure: process.env.NODE_ENV === "production",
+};
+
 const toB64Url = (buf) =>
   Buffer.from(buf).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 const fromB64Url = (str) =>
@@ -10,7 +19,7 @@ const fromB64Url = (str) =>
 const signJwt = (payload) => {
   const header = toB64Url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
   const body = toB64Url(
-    JSON.stringify({ ...payload, exp: Math.floor(Date.now() / 1000) + 7 * 24 * 3600 })
+    JSON.stringify({ ...payload, exp: Math.floor(Date.now() / 1000) + 15 * 60 })
   );
   const sig = toB64Url(
     crypto.createHmac("sha256", JWT_SECRET).update(`${header}.${body}`).digest()
@@ -44,6 +53,10 @@ const verifyPassword = (password, stored) => {
   return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(candidate, "hex"));
 };
 
+const generateRefreshToken = () => crypto.randomBytes(32).toString("hex");
+
+const hashToken = (token) => crypto.createHash("sha256").update(token).digest("hex");
+
 const authMiddleware = (req, res, next) => {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
@@ -54,4 +67,7 @@ const authMiddleware = (req, res, next) => {
   next();
 };
 
-module.exports = { signJwt, verifyJwt, hashPassword, verifyPassword, authMiddleware };
+module.exports = {
+  signJwt, verifyJwt, hashPassword, verifyPassword, authMiddleware,
+  generateRefreshToken, hashToken, REFRESH_COOKIE_NAME, REFRESH_COOKIE_OPTS,
+};

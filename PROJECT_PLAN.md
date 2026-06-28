@@ -245,13 +245,15 @@ frontend/src/
 - [ ] Improve mobile responsiveness (tables overflow, form grids on small screens)
 - [ ] Add loading skeletons (replace plain text "Loading..." states)
 
-### Phase 4 — Auth Hardening (1–2 days)
-Fill the remaining auth gaps.
+### Phase 4 — Auth Hardening ✅ Complete
 
-- [ ] Add refresh token mechanism (store in httpOnly cookie, short-lived access token)
-- [ ] Add password reset flow (email link with time-limited token)
-- [ ] Add account deletion endpoint with cascade cleanup
-- [ ] Add token blacklist for logout (Redis or DB-backed, simple for personal use)
+- [x] Access token reduced to 15 min (was 7 days); refresh token (7-day httpOnly cookie, `path: /api/auth`) stored as SHA-256 hash in `refresh_tokens` table; rotated on every use
+- [x] Silent token refresh interceptor in `apiClient.js` — queues parallel 401s, retries after single refresh call, falls back to reload if refresh fails
+- [x] Password reset flow: `POST /auth/forgot-password` (rate-limited, anti-enumeration) → email with 1-hour time-limited link → `POST /auth/reset-password` revokes all sessions on success
+- [x] `ResetPassword.jsx` page at `/reset-password` (outside Layout, accessible when logged out)
+- [x] Logout (`POST /auth/logout`) revokes refresh token in DB before clearing local state
+- [x] Account deletion (`DELETE /auth/account`) removes all user-scoped data then deletes user row (cascade handles profiles/settings/tokens)
+- [x] Forgot-password UI in auth modal ("Forgot password?" link in login mode)
 
 ### Phase 5 — Testing (2–3 days)
 Establish a baseline so changes don't break things silently.
