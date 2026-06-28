@@ -212,17 +212,17 @@ frontend/src/
 
 > **Deferred:** Winston logging, forgot-password flow — moved to Phase 4.
 
-### Phase 2 — Frontend Refactor (2–3 days) ⏳ Next after Phase 3
-Break up the monolithic `App.js` and add routing.
+### Phase 2 — Frontend Refactor ✅ Complete
 
-> **Note:** Intentionally doing Phase 3 (UI overhaul) before Phase 2 to get visual results first. Phase 2 will refactor the already-styled components.
+- [x] Installed react-router-dom@7 + @tanstack/react-query@5
+- [x] Created `src/context/AuthContext.jsx` — all auth state/logic extracted into React context (login, register, logout, token storage)
+- [x] Created `src/components/Layout.jsx` — sidebar with `<NavLink>` (URL-driven active state), header, dark mode toggle, auth modal, `<Toaster>`, `<Routes>`
+- [x] Created `src/pages/Dashboard.jsx` — full dashboard using TanStack Query: `useQuery` for expenses/credits, `useMutation` for all CRUD + CSV upload; sorting computed in `useMemo` (survives refetch)
+- [x] `App.js` reduced from 920 → 25 lines — just providers + Layout
+- [x] URL routing: `/` Dashboard, `/budgets` Budget Goals, `/analytics` Analytics + Trends, `/automation` Automation
+- [x] Toast notifications done in Phase 3 ✅
 
-- [ ] Add React Router v6 — replace tab state with URL routes (`/`, `/analytics`, `/budgets`, etc.)
-- [ ] Add TanStack Query — replace manual `useState` + `useEffect` fetch patterns
-- [ ] Extract pages from App.js: `Dashboard`, `Analytics`, `Budgets`, `Automation`, `Trends`, `Profile`
-- [ ] Extract shared components: `TransactionTable`, `CategoryBadge`, `BudgetProgressBar`, `CsvImportModal`
-- [ ] Add error boundaries at page level
-- [ ] Toast notifications already done in Phase 3 ✅
+> **Deferred:** Error boundaries, further component extraction (TransactionTable, CsvImportModal as standalone files) — can be done in Phase 5 alongside testing.
 
 ### Phase 3 — UI Overhaul 🔄 In Progress
 
