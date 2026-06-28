@@ -25,26 +25,50 @@ The app has months of real, working business logic that is hard to recreate. Res
 
 ## 2. Current Architecture Snapshot
 
+> **Updated June 2026** — reflects post-Phase-1 and Phase-3 (in progress) state.
+
 ```
 expense-tracker/
 ├── backend/
-│   ├── server.js          ← 1,859 lines — ALL 38 endpoints here
+│   ├── server.js             ← Express setup only (~60 lines)
+│   ├── routes/
+│   │   ├── auth.js           ← register, login, logout, profile
+│   │   ├── expenses.js       ← CRUD + filtering
+│   │   ├── credits.js        ← CRUD + filtering
+│   │   ├── budgets.js        ← budget goals + progress
+│   │   ├── automation.js     ← recurring, expected-incomes, reconciliation
+│   │   ├── reports.js        ← export + schedules + send-now
+│   │   ├── email.js          ← settings + test
+│   │   └── upload.js         ← CSV import (dry-run + commit)
+│   ├── middleware/
+│   │   ├── auth.js           ← JWT verification
+│   │   ├── validate.js       ← Zod schema wrapper
+│   │   └── rateLimiter.js    ← express-rate-limit config
+│   ├── jobs/
+│   │   ├── recurringTransactions.js
+│   │   └── scheduledReports.js
 │   ├── utils/
-│   │   └── csvNormalizer.js  ← bank import logic (AIB-specific)
-│   └── .env               ← ⚠️ credentials committed
+│   │   ├── csvNormalizer.js
+│   │   ├── reportGenerator.js
+│   │   └── email.js
+│   ├── db/
+│   │   └── index.js          ← mysql2 pool
+│   └── .env.example
 ├── frontend/
+│   ├── tailwind.config.js    ← Tailwind v3 (darkMode: 'class')
 │   └── src/
-│       ├── App.js          ← 1,000+ lines — all state + routing + UI
-│       ├── Analytics.js    ← 27 KB — charts (monthly/yearly)
-│       ├── Automation.js   ← 32 KB — recurring, schedules, email settings
-│       ├── BudgetGoals.js  ← 16 KB — budget tracking with progress bars
-│       ├── SpendingTrends.js ← 13 KB — year-over-year trends
-│       ├── ExpenseTemplates.js ← 7 KB — quick-add templates
+│       ├── App.js            ← ~800 lines — layout, auth, dashboard
+│       ├── App.css           ← CSS variables + shared component classes
+│       ├── Analytics.js      ← charts (monthly/yearly)
+│       ├── Automation.js     ← recurring, schedules, email settings
+│       ├── BudgetGoals.js    ← budget tracking with progress bars
+│       ├── SpendingTrends.js ← year-over-year trends
+│       ├── ExpenseTemplates.js ← quick-add templates
 │       ├── api/apiClient.js  ← Axios + auth interceptor
-│       ├── constants/categories.js  ← 20 categories
-│       └── utils/format.js  ← currency/percentage formatters
-├── expence-tracker.sql    ← schema with all tables
-└── ExpenseTracker.bat     ← starts both servers
+│       ├── constants/categories.js
+│       └── utils/format.js
+├── expence-tracker.sql
+└── ExpenseTracker.bat
 ```
 
 ### What Works Right Now
@@ -174,46 +198,52 @@ frontend/src/
 - [x] `express-rate-limit` applied to `/api/auth/login` and `/api/auth/register` (10 req / 15 min)
 - [x] Zod validation on all POST/PUT endpoints via `backend/middleware/validate.js`
 
-### Phase 1 — Backend Refactor (2–3 days)
-Split the 1,859-line `server.js` into maintainable modules.
+### Phase 1 — Backend Refactor ✅ Complete
 
-- [ ] Create `backend/db/index.js` — mysql2 pool (move from server.js)
-- [ ] Create `backend/middleware/auth.js` — authMiddleware (move from server.js)
-- [ ] Create `backend/middleware/validate.js` — Zod wrapper middleware
-- [ ] Create `backend/routes/` — split all 38 endpoints across 8 route files
-- [ ] Create `backend/jobs/` — move cron logic out of server.js
-- [ ] Create `backend/utils/reportGenerator.js` — move PDF/Excel logic out
-- [ ] Add Winston logging (replace all console.log/error)
-- [ ] Add proper error handler middleware (replace scattered try-catch 500s)
-- [ ] Add `backend/routes/auth.js`: POST `/api/auth/forgot-password` + `/api/auth/reset-password`
+- [x] Created `backend/db/index.js` — mysql2 pool
+- [x] Created `backend/middleware/auth.js` — JWT authMiddleware
+- [x] Created `backend/middleware/validate.js` — Zod wrapper middleware
+- [x] Created `backend/middleware/rateLimiter.js` — express-rate-limit on auth endpoints
+- [x] Created `backend/routes/` — all endpoints split across 8 route files
+- [x] Created `backend/jobs/` — cron logic isolated from server.js
+- [x] Created `backend/utils/reportGenerator.js` — PDF/Excel logic separated
+- [x] Created `backend/utils/email.js` — nodemailer helpers
+- [x] `server.js` is now ~60 lines (Express setup + route mounting only)
 
-> **Result:** `server.js` becomes ~50 lines. Each route file is 100–200 lines.
+> **Deferred:** Winston logging, forgot-password flow — moved to Phase 4.
 
-### Phase 2 — Frontend Refactor (2–3 days)
+### Phase 2 — Frontend Refactor (2–3 days) ⏳ Next after Phase 3
 Break up the monolithic `App.js` and add routing.
+
+> **Note:** Intentionally doing Phase 3 (UI overhaul) before Phase 2 to get visual results first. Phase 2 will refactor the already-styled components.
 
 - [ ] Add React Router v6 — replace tab state with URL routes (`/`, `/analytics`, `/budgets`, etc.)
 - [ ] Add TanStack Query — replace manual `useState` + `useEffect` fetch patterns
 - [ ] Extract pages from App.js: `Dashboard`, `Analytics`, `Budgets`, `Automation`, `Trends`, `Profile`
 - [ ] Extract shared components: `TransactionTable`, `CategoryBadge`, `BudgetProgressBar`, `CsvImportModal`
 - [ ] Add error boundaries at page level
-- [ ] Add toast notifications (replace `alert()` calls)
+- [ ] Toast notifications already done in Phase 3 ✅
 
-### Phase 3 — UI Overhaul (3–4 days) ✨ The "new face"
-Replace vanilla CSS with a modern design system.
+### Phase 3 — UI Overhaul 🔄 In Progress
 
-- [ ] Install Tailwind CSS (postcss setup)
-- [ ] Install shadcn/ui — get Button, Card, Dialog, Select, Input, Badge, Progress primitives
-- [ ] Redesign Dashboard: Card-based layout with summary stats at top, transaction table below
-- [ ] Redesign Analytics: Full-width charts, modern filter chips, cleaner legend
-- [ ] Redesign Budgets: Cleaner progress cards, better color system
-- [ ] Redesign Automation: Tabbed sub-sections, cleaner form layouts
-- [ ] Add proper sidebar or top navigation (replace tab buttons in header)
-- [ ] Improve mobile responsiveness
-- [ ] Keep dark mode (adapt CSS variables to Tailwind)
-- [ ] Replace `window.alert` / `window.confirm` with shadcn Dialog/Toast
+> **Note:** Decided against shadcn/ui — Tailwind + lucide-react + react-hot-toast is lighter and sufficient. shadcn/ui can be added later if needed.
 
-> **Result:** App looks modern and professional. Same features, better experience.
+**Done:**
+- [x] Installed Tailwind CSS v3 (CRA-compatible, `tailwind.config.js`, `darkMode: 'class'`)
+- [x] Replaced all `window.alert()` / DOM notification manipulation with `react-hot-toast`
+- [x] New sidebar navigation with lucide-react icons and active states
+- [x] New top header bar (dark mode toggle, username, logout)
+- [x] Redesigned auth modal (login / register with proper form layout)
+- [x] Redesigned Dashboard layout: summary cards, Add Expense/Income panels, transaction table with filters
+- [x] Dark mode via `document.documentElement.classList.toggle('dark')` + Tailwind `dark:` variants
+- [x] Mobile sidebar toggle (hamburger menu)
+- [x] Restored shared CSS component classes in App.css (`.card`, `.btn`, `.form-input`, `.styled-table`, etc.) with CSS-variable-based dark mode for child components
+- [x] Fixed dark mode in all child components: Automation inputs, BudgetGoals notification colors, Analytics table header, consistent color variables (`--color-surface`, `--color-input`, `--color-border`)
+
+**Remaining:**
+- [ ] Redesign child component pages (Analytics, BudgetGoals, Automation, SpendingTrends) to use Tailwind classes directly instead of the legacy CSS variable system
+- [ ] Improve mobile responsiveness (tables overflow, form grids on small screens)
+- [ ] Add loading skeletons (replace plain text "Loading..." states)
 
 ### Phase 4 — Auth Hardening (1–2 days)
 Fill the remaining auth gaps.
