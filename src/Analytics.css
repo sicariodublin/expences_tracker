@@ -265,7 +265,7 @@
 
 .styled-table th {
   font-weight: 600;
-  color: #0f1010;
+  color: var(--color-muted);
 }
 
 /* Numeric cell coloring by value */

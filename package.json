@@ -6,9 +6,11 @@
     "chart.js": "^4.4.8",
     "chartjs-plugin-datalabels": "^2.2.0",
     "cra-template": "1.2.0",
+    "lucide-react": "^1.21.0",
     "react": "^19.0.0",
     "react-chartjs-2": "^5.3.0",
     "react-dom": "^19.0.0",
+    "react-hot-toast": "^2.6.0",
     "react-scripts": "5.0.1",
     "web-vitals": "^4.2.4"
   },
@@ -38,5 +40,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.19"
   }
 }

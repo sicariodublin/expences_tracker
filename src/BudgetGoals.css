@@ -55,19 +55,31 @@
 .notification-danger {
   border-color: rgba(220, 38, 38, 0.4);
   background: rgba(220, 38, 38, 0.1);
-  color: #991b1b;
+  color: #b91c1c;
 }
 
 .notification-warning {
   border-color: rgba(245, 158, 11, 0.4);
   background: rgba(245, 158, 11, 0.1);
-  color: #92400e;
+  color: #b45309;
 }
 
 .notification-info {
   border-color: rgba(14, 165, 233, 0.4);
   background: rgba(14, 165, 233, 0.1);
-  color: #0c4a6e;
+  color: #0369a1;
+}
+
+:root.dark .notification-danger {
+  color: #fca5a5;
+}
+
+:root.dark .notification-warning {
+  color: #fcd34d;
+}
+
+:root.dark .notification-info {
+  color: #93c5fd;
 }
 
 .add-budget-form h3 {
