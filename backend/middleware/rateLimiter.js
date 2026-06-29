@@ -1,5 +1,12 @@
 const rateLimit = require("express-rate-limit");
 
+const passthrough = (req, res, next) => next();
+
+if (process.env.NODE_ENV === "test") {
+  module.exports = { authLimiter: passthrough, forgotLimiter: passthrough };
+  return;
+}
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,

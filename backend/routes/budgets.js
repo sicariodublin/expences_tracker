@@ -51,7 +51,7 @@ router.delete("/:id", authMiddleware, (req, res) => {
 });
 
 router.get("/progress", authMiddleware, (req, res) => {
-  const selectedMonth = req.query.month || new Date().toISOString().split("T")[0];
+  const selectedMonth = (req.query.month || new Date().toISOString()).slice(0, 7);
   const sql = `
     SELECT
       bg.id, bg.category,

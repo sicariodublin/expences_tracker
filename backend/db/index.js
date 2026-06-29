@@ -23,11 +23,11 @@ let db = createDbConnection();
 
 const connectDbOnce = () =>
   new Promise((resolve, reject) => {
-    db.connect((err) => {
+    db.connect(async (err) => {
       if (err) { reject(err); return; }
       dbConnected = true;
       console.log("Connected to MySQL");
-      initAuthTables().catch((e) => console.error("Auth table init error:", e));
+      await initAuthTables().catch((e) => console.error("Auth table init error:", e));
       resolve();
     });
   });
@@ -119,7 +119,7 @@ const initAuthTables = async () => {
       try {
         await query(`ALTER TABLE ${table} ADD COLUMN user_id INT NULL`);
       } catch (e) {
-        if (e.code !== "ER_DUP_FIELDNAME") throw e;
+        if (e.code !== "ER_DUP_FIELDNAME" && e.code !== "ER_NO_SUCH_TABLE") throw e;
       }
     }
     const [[{ cnt }]] = await query("SELECT COUNT(*) as cnt FROM users");

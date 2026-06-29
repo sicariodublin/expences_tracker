@@ -1,0 +1,7 @@
+node_modules
+frontend
+.git
+.github
+*.md
+*.bat
+expence-tracker.sql

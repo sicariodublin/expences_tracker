@@ -74,13 +74,17 @@ app.use((err, req, res, next) => {
 });
 
 // ── Start ────────────────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+module.exports = app;
 
-dbReady
-  .then(async () => {
-    await processRecurringTransactions();
-    startRecurringJob();
-    await initScheduleJobs();
-  })
-  .catch(() => {});
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+  dbReady
+    .then(async () => {
+      await processRecurringTransactions();
+      startRecurringJob();
+      await initScheduleJobs();
+    })
+    .catch(() => {});
+}
