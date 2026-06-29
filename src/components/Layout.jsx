@@ -232,7 +232,7 @@ function AuthModal() {
 }
 
 export default function Layout() {
-  const { isAuthenticated, handleLogout } = useAuth();
+  const { isAuthenticated, emailVerified, handleLogout, resendVerification } = useAuth();
   const [darkMode, setDarkMode]     = useState(() => localStorage.getItem("darkMode") === "true");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
@@ -338,6 +338,21 @@ export default function Layout() {
             {currentPage?.label ?? "Expense Tracker"}
           </h2>
         </header>
+
+        {/* Email verification banner */}
+        {isAuthenticated && !emailVerified && (
+          <div className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-700/50 px-6 py-2.5 flex items-center gap-3 text-sm text-amber-800 dark:text-amber-300">
+            <span className="flex-1">
+              Please verify your email address to unlock all features.
+            </span>
+            <button
+              onClick={resendVerification}
+              className="shrink-0 font-medium underline underline-offset-2 hover:text-amber-600 dark:hover:text-amber-200 transition-colors"
+            >
+              Resend email
+            </button>
+          </div>
+        )}
 
         <main className="flex-1 p-6 overflow-auto">
           {isAuthenticated ? (

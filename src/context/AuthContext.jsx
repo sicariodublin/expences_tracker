@@ -8,6 +8,9 @@ export function AuthProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(
     () => !!(localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token"))
   );
+  const [emailVerified, setEmailVerified] = useState(
+    () => localStorage.getItem("email_verified") === "true"
+  );
   const [authMode, setAuthMode]         = useState("login");
   const [authUsername, setAuthUsername] = useState("");
   const [authPassword, setAuthPassword] = useState("");
@@ -19,7 +22,7 @@ export function AuthProvider({ children }) {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSent, setForgotSent]   = useState(false);
 
-  const storeToken = (token) => {
+  const storeToken = (token, verified = false) => {
     if (rememberMe) {
       localStorage.setItem("auth_token", token);
       sessionStorage.removeItem("auth_token");
@@ -27,6 +30,8 @@ export function AuthProvider({ children }) {
       sessionStorage.setItem("auth_token", token);
       localStorage.removeItem("auth_token");
     }
+    localStorage.setItem("email_verified", String(verified));
+    setEmailVerified(verified);
   };
 
   const handleAuthSubmit = async (e) => {
@@ -42,14 +47,14 @@ export function AuthProvider({ children }) {
           username: authUsername,
           password: authPassword,
         });
-        storeToken(data.token);
+        storeToken(data.token, data.emailVerified ?? false);
         setIsAuthenticated(true);
       } else {
         const { data } = await apiClient.post("/auth/login", {
           username: authUsername,
           password: authPassword,
         });
-        storeToken(data.token);
+        storeToken(data.token, data.emailVerified ?? false);
         setIsAuthenticated(true);
       }
     } catch (error) {
@@ -69,8 +74,10 @@ export function AuthProvider({ children }) {
       // Always clear local state even if the server call fails
     } finally {
       localStorage.removeItem("auth_token");
+      localStorage.removeItem("email_verified");
       sessionStorage.removeItem("auth_token");
       setIsAuthenticated(false);
+      setEmailVerified(false);
       setAuthUsername("");
       setAuthPassword("");
       setAuthRepeat("");
@@ -90,10 +97,26 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const resendVerification = async () => {
+    try {
+      await apiClient.post("/auth/resend-verification");
+    } catch (_) {
+      // Swallow errors — server responds 200 regardless
+    }
+    toast.success("Verification email sent! Check your inbox.");
+  };
+
+  const markEmailVerified = () => {
+    localStorage.setItem("email_verified", "true");
+    setEmailVerified(true);
+  };
+
   return (
     <AuthContext.Provider
       value={{
         isAuthenticated,
+        emailVerified,
+        markEmailVerified,
         authMode, setAuthMode,
         authUsername, setAuthUsername,
         authPassword, setAuthPassword,
@@ -105,6 +128,7 @@ export function AuthProvider({ children }) {
         forgotEmail, setForgotEmail,
         forgotSent, setForgotSent,
         handleForgotSubmit,
+        resendVerification,
       }}
     >
       {children}
