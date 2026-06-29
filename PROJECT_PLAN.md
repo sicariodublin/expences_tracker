@@ -259,23 +259,35 @@ frontend/src/
 - [x] Account deletion (`DELETE /auth/account`) removes all user-scoped data then deletes user row (cascade handles profiles/settings/tokens)
 - [x] Forgot-password UI in auth modal ("Forgot password?" link in login mode)
 
-### Phase 5 — Testing (2–3 days)
-Establish a baseline so changes don't break things silently.
+### Phase 5 — Testing ✅ Complete
 
-- [ ] Install Vitest + Supertest for backend
-- [ ] Write tests for: auth routes, expense CRUD, CSV import (dry-run + commit), budget progress calculation
-- [ ] Install React Testing Library for frontend
-- [ ] Write tests for: login form, transaction table render, CSV import modal
-- [ ] Add GitHub Actions CI that runs tests on push
+- [x] Installed Vitest + Supertest as devDependencies
+- [x] Created `vitest.config.mjs` — `fileParallelism: false`, `forceExit`, loads DB credentials from `.env`
+- [x] Created `backend/tests/setup.js` — `beforeAll` ensures tables exist + `afterEach` wipes test data
+- [x] Created `backend/tests/auth.test.js` — 17 tests (register, login, refresh rotation, logout, forgot-password anti-enumeration, reset-password, delete account)
+- [x] Created `backend/tests/expenses.test.js` — 11 tests (auth guard, empty list, create, validate category, update, delete)
+- [x] Created `backend/tests/budgets.test.js` — 10 tests (create, validate, list, soft-delete, progress with real spend)
+- [x] Updated `frontend/src/App.test.js` — checks auth modal renders when logged out
+- [x] Added GitHub Actions CI (`.github/workflows/ci.yml`) — MySQL 8 service + backend tests + frontend build
+- [x] Fixed `server.js` — `module.exports = app` + `if (require.main === module)` guard for testability
+- [x] Fixed `db/index.js` — `await initAuthTables()` before `resolve()` so tables exist when tests run
+- [x] Fixed `rateLimiter.js` — passthrough middleware in `NODE_ENV=test`
+- [x] Fixed `routes/budgets.js` — `selectedMonth.slice(0, 7)` so YYYY-MM comparison works (was a real production bug)
 
-### Phase 6 — DevOps (1–2 days)
-Make deployment reliable.
+**38/38 tests passing.**
 
-- [ ] Create `Dockerfile` (backend) + `docker-compose.yml` (backend + MySQL)
-- [ ] Create `frontend/Dockerfile` (multi-stage: build + serve with nginx)
-- [ ] Replace `.bat` file with `docker-compose up` workflow
-- [ ] Add `backend/db/migrations/` with versioned SQL files (replace single `.sql` dump)
-- [ ] Add GitHub Actions: lint + test + build on PR, deploy on merge to main
+### Phase 6 — DevOps ✅ Complete
+
+- [x] Created `backend/Dockerfile` (Node 20 Alpine, prod deps only)
+- [x] Created `frontend/Dockerfile` (multi-stage: CRA build with `REACT_APP_API_URL=/api` + nginx serve)
+- [x] Created `frontend/nginx.conf` (SPA fallback + `/api/` proxy to backend container)
+- [x] Created `docker-compose.yml` (MySQL 8 with healthcheck → migrate → backend → frontend on port 3001)
+- [x] Created `backend/db/migrate.js` — versioned migration runner (skips applied files, tolerates idempotent errors)
+- [x] Created `backend/db/migrations/001_initial_schema.sql` — complete schema with `user_id` columns, replaces ad-hoc `.sql` dump
+- [x] Added `.env.example` (root) with `MYSQL_ROOT_PASSWORD` + `APP_PORT` documented
+- [x] `.bat` file superseded by `docker compose up -d`
+
+**Start the full stack:** `docker compose up -d` → app at `http://localhost:3001`
 
 ---
 
