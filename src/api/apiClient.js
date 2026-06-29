@@ -54,11 +54,14 @@ apiClient.interceptors.response.use(
     refreshPromise = apiClient
       .post("/auth/refresh")
       .then(({ data }) => {
-        const { token } = data;
+        const { token, emailVerified } = data;
         if (inLocal) {
           localStorage.setItem("auth_token", token);
         } else {
           sessionStorage.setItem("auth_token", token);
+        }
+        if (emailVerified !== undefined) {
+          localStorage.setItem("email_verified", String(emailVerified));
         }
         drainQueue(null, token);
         return token;
