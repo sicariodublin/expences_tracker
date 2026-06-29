@@ -1,8 +1,12 @@
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
-test('renders app header and actions', () => {
+test('shows sign-in form when not authenticated', () => {
   render(<App />);
-  expect(screen.getByText(/Expense Tracker/i)).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /Add Expense/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
+});
+
+test('shows link to create an account when not authenticated', () => {
+  render(<App />);
+  expect(screen.getByRole('button', { name: /create one/i })).toBeInTheDocument();
 });
