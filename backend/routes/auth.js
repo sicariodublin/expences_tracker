@@ -19,7 +19,28 @@ async function issueTokens(res, userId, username) {
     [userId, hashToken(refreshRaw)]
   );
   res.cookie(REFRESH_COOKIE_NAME, refreshRaw, REFRESH_COOKIE_OPTS);
-  return accessToken;
+  const [[user]] = await query("SELECT email_verified FROM users WHERE id = ?", [userId]);
+  return { accessToken, emailVerified: !!user?.email_verified };
+}
+
+async function sendVerificationEmail(userId, email) {
+  await query("DELETE FROM email_verification_tokens WHERE user_id = ?", [userId]);
+  const raw = crypto.randomBytes(32).toString("hex");
+  await query(
+    "INSERT INTO email_verification_tokens (user_id, token_hash, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR))",
+    [userId, hashToken(raw)]
+  );
+  const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3001";
+  const verifyUrl = `${FRONTEND_URL}/verify-email?token=${raw}`;
+  const { resolveUserTransporter, REPORT_FROM_EMAIL } = require("../utils/email");
+  const transporter = await resolveUserTransporter(userId);
+  if (!transporter) return;
+  await transporter.sendMail({
+    from: REPORT_FROM_EMAIL || "noreply@expense-tracker.local",
+    to: email,
+    subject: "Verify your Expense Tracker email",
+    html: `<p>Welcome to Expense Tracker!</p><p><a href="${verifyUrl}">Click here to verify your email address</a></p><p>This link expires in 24 hours. If you didn't create this account, you can ignore this email.</p>`,
+  });
 }
 
 // ── Register ─────────────────────────────────────────────────────────────────
@@ -37,8 +58,9 @@ router.post("/register", authLimiter, validate(schemas.auth), async (req, res) =
     await query("INSERT INTO user_profiles (user_id) VALUES (?)", [userId]);
     const [[{ cnt }]] = await query("SELECT COUNT(*) as cnt FROM users");
     if (cnt === 1) await claimOrphanedData(userId);
-    const token = await issueTokens(res, userId, username);
-    res.status(201).json({ token });
+    const { accessToken, emailVerified } = await issueTokens(res, userId, username);
+    sendVerificationEmail(userId, username).catch(() => {});
+    res.status(201).json({ token: accessToken, emailVerified });
   } catch (err) {
     console.error("Register error:", err);
     res.status(500).json({ error: "Failed to register" });
@@ -54,8 +76,8 @@ router.post("/login", authLimiter, validate(schemas.auth), async (req, res) => {
     if (!user || !verifyPassword(password, user.password_hash))
       return res.status(401).json({ error: "Invalid credentials" });
     await maybeClaimOrphanedData(user.id);
-    const token = await issueTokens(res, user.id, username);
-    res.json({ token });
+    const { accessToken, emailVerified } = await issueTokens(res, user.id, username);
+    res.json({ token: accessToken, emailVerified });
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ error: "Failed to login" });
@@ -81,8 +103,8 @@ router.post("/refresh", async (req, res) => {
 
     // Rotate: delete old token, issue new one
     await query("DELETE FROM refresh_tokens WHERE token_hash = ?", [tokenHash]);
-    const token = await issueTokens(res, row.user_id, row.username);
-    res.json({ token });
+    const { accessToken, emailVerified } = await issueTokens(res, row.user_id, row.username);
+    res.json({ token: accessToken, emailVerified });
   } catch (err) {
     console.error("Refresh error:", err);
     res.status(500).json({ error: "Failed to refresh token" });
@@ -164,6 +186,48 @@ router.post("/reset-password", validate(schemas.resetPassword), async (req, res)
   } catch (err) {
     console.error("Reset-password error:", err);
     res.status(500).json({ error: "Failed to reset password" });
+  }
+});
+
+// ── Email Verification ────────────────────────────────────────────────────────
+
+router.get("/verify-email", async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) return res.status(400).json({ error: "Missing token" });
+    const tokenHash = hashToken(token);
+    const [[row]] = await query(
+      "SELECT * FROM email_verification_tokens WHERE token_hash = ? AND expires_at > NOW()",
+      [tokenHash]
+    );
+    if (!row) return res.status(400).json({ error: "Invalid or expired verification link." });
+    await query("UPDATE users SET email_verified = TRUE WHERE id = ?", [row.user_id]);
+    await query("DELETE FROM email_verification_tokens WHERE user_id = ?", [row.user_id]);
+    res.json({ message: "Email verified successfully." });
+  } catch (err) {
+    console.error("Verify email error:", err);
+    res.status(500).json({ error: "Failed to verify email" });
+  }
+});
+
+router.post("/resend-verification", authMiddleware, forgotLimiter, async (req, res) => {
+  res.json({ message: "If your email is unverified, a new link has been sent." });
+  try {
+    const [[user]] = await query("SELECT username, email_verified FROM users WHERE id = ?", [req.userId]);
+    if (!user || user.email_verified) return;
+    await sendVerificationEmail(req.userId, user.username).catch(() => {});
+  } catch (err) {
+    console.error("Resend verification error:", err);
+  }
+});
+
+router.get("/me", authMiddleware, async (req, res) => {
+  try {
+    const [[user]] = await query("SELECT username, email_verified FROM users WHERE id = ?", [req.userId]);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    res.json({ username: user.username, emailVerified: !!user.email_verified });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch user" });
   }
 });
 
