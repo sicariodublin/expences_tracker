@@ -11,7 +11,7 @@ const FREQUENCIES = ["daily", "weekly", "biweekly", "monthly", "quarterly", "yea
 
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD");
 const category = z.enum(CATEGORIES);
-const positiveAmount = z.number({ invalid_type_error: "Amount must be a number" }).positive().max(10_000_000);
+const positiveAmount = z.coerce.number({ invalid_type_error: "Amount must be a number" }).positive().max(10_000_000);
 
 // ── Auth ───────────────────────────────────────────────────────────────────
 const auth = z.object({
@@ -58,7 +58,7 @@ const expectedIncome = z.object({
   category,
   expected_amount: positiveAmount,
   frequency: z.enum(FREQUENCIES).optional(),
-  due_day: z.number().int().min(1).max(31).nullable().optional(),
+  due_day: z.coerce.number().int().min(1).max(31).nullable().optional(),
   notes: z.string().max(500).nullable().optional(),
   last_received_date: dateStr.nullable().optional(),
 });
@@ -72,8 +72,8 @@ const recurringTransaction = z.object({
   category,
   amount: positiveAmount,
   frequency: z.enum(FREQUENCIES).optional(),
-  dayOfMonth: z.number().int().min(1).max(31).nullable().optional(),
-  weekday: z.number().int().min(0).max(6).nullable().optional(),
+  dayOfMonth: z.coerce.number().int().min(1).max(31).nullable().optional(),
+  weekday: z.coerce.number().int().min(0).max(6).nullable().optional(),
   startDate: dateStr.nullable().optional(),
   is_active: z.boolean().optional(),
 });

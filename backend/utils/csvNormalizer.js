@@ -47,7 +47,7 @@ const deriveCategory = (name) => {
   if (/LIDL|ALDI|TESCO|SUPERVALU|SPAR|MORE 4|POLSKI/i.test(n)) return "Groceries";
   if (/APPLEGREEN|PETROL|PARKING|ONLINE MOTOR|TOLL/i.test(n)) return "Carro";
   if (/AIB CARD PYMT|NAPS LOAN|PREMIUM CREDIT/i.test(n)) return "Loan/CreditCard";
-  if (/IRISH LIFE|BRECAN PHARM|GP|GET HEALTH|THE MEDICAL CE/i.test(n)) return "Healthcare";
+  if (/IRISH LIFE|BRECAN PHARM|GET HEALTH|THE MEDICAL CE/i.test(n)) return "Healthcare";
   if (/BORD GAIS|EIR|RENT|GAS|MORIARTY REAL/i.test(n)) return "Utilities";
   if (/FEE|TAX|STAMP DUTY/i.test(n)) return "Fees";
   if (/MICROSOFT|APPLE|GOOGLE|OPENAI|TRAE/i.test(n)) return "Licenses";

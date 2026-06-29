@@ -16,10 +16,13 @@ const IGNORABLE = new Set([
 ]);
 
 async function runStatements(conn, sql) {
-  const statements = sql
-    .split(/;\s*\n/) // split on ; followed by newline to avoid splitting inside values
+  // Strip -- comments before splitting so a comment before a CREATE TABLE
+  // doesn't cause the entire statement to be dropped by the filter
+  const stripped = sql.replace(/--[^\n]*/g, "");
+  const statements = stripped
+    .split(/;\s*\n/)
     .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !s.startsWith("--"));
+    .filter((s) => s.length > 0);
 
   for (const stmt of statements) {
     try {
