@@ -25,14 +25,14 @@ The app has months of real, working business logic that is hard to recreate. Res
 
 ## 2. Current Architecture Snapshot
 
-> **Updated June 2026** — reflects post-Phase-1 and Phase-3 (in progress) state.
+> **Updated June 2026** — reflects all phases complete through Phase 6.
 
 ```
 expense-tracker/
 ├── backend/
 │   ├── server.js             ← Express setup only (~60 lines)
 │   ├── routes/
-│   │   ├── auth.js           ← register, login, logout, profile
+│   │   ├── auth.js           ← register, login, logout, profile, password-reset
 │   │   ├── expenses.js       ← CRUD + filtering
 │   │   ├── credits.js        ← CRUD + filtering
 │   │   ├── budgets.js        ← budget goals + progress
@@ -42,33 +42,51 @@ expense-tracker/
 │   │   └── upload.js         ← CSV import (dry-run + commit)
 │   ├── middleware/
 │   │   ├── auth.js           ← JWT verification
-│   │   ├── validate.js       ← Zod schema wrapper
-│   │   └── rateLimiter.js    ← express-rate-limit config
+│   │   ├── validate.js       ← Zod schema wrapper (z.coerce.number for form fields)
+│   │   └── rateLimiter.js    ← express-rate-limit (passthrough in test env)
 │   ├── jobs/
 │   │   ├── recurringTransactions.js
 │   │   └── scheduledReports.js
 │   ├── utils/
-│   │   ├── csvNormalizer.js
+│   │   ├── csvNormalizer.js  ← keyword-based auto-categorisation
 │   │   ├── reportGenerator.js
 │   │   └── email.js
 │   ├── db/
-│   │   └── index.js          ← mysql2 pool
+│   │   ├── index.js          ← mysql2 pool
+│   │   ├── migrate.js        ← versioned migration runner
+│   │   └── migrations/
+│   │       └── 001_initial_schema.sql
+│   ├── tests/
+│   │   ├── setup.js
+│   │   ├── auth.test.js      ← 17 tests
+│   │   ├── expenses.test.js  ← 11 tests
+│   │   └── budgets.test.js   ← 10 tests
+│   ├── Dockerfile
 │   └── .env.example
-├── frontend/
+├── frontend/                  ← git submodule (sicariodublin/expences_tracker)
 │   ├── tailwind.config.js    ← Tailwind v3 (darkMode: 'class')
+│   ├── Dockerfile            ← multi-stage: CRA build + nginx
+│   ├── nginx.conf            ← SPA fallback + /api/ proxy
 │   └── src/
-│       ├── App.js            ← ~800 lines — layout, auth, dashboard
-│       ├── App.css           ← CSS variables + shared component classes
-│       ├── Analytics.js      ← charts (monthly/yearly)
-│       ├── Automation.js     ← recurring, schedules, email settings
+│       ├── App.js            ← ~25 lines — providers + Layout only
+│       ├── App.css           ← CSS variables + global resets
+│       ├── context/AuthContext.jsx
+│       ├── pages/
+│       │   ├── Dashboard.jsx ← TanStack Query, category breakdown chart
+│       │   └── ResetPassword.jsx
+│       ├── Analytics.js      ← full Tailwind (no Analytics.css)
+│       ├── Automation.js     ← full Tailwind (no Automation.css)
 │       ├── BudgetGoals.js    ← budget tracking with progress bars
-│       ├── SpendingTrends.js ← year-over-year trends
-│       ├── ExpenseTemplates.js ← quick-add templates
-│       ├── api/apiClient.js  ← Axios + auth interceptor
+│       ├── SpendingTrends.js ← full Tailwind (no SpendingTrends.css)
+│       ├── ExpenseTemplates.js
+│       ├── components/Layout.jsx
+│       ├── api/apiClient.js  ← Axios + silent refresh interceptor
 │       ├── constants/categories.js
 │       └── utils/format.js
-├── expence-tracker.sql
-└── ExpenseTracker.bat
+├── docker-compose.yml         ← MySQL → backend (volume mount) → frontend :3001
+├── .github/workflows/ci.yml
+├── vitest.config.mjs
+└── .env.example
 ```
 
 ### What Works Right Now
@@ -86,15 +104,9 @@ expense-tracker/
 - Authentication: JWT, PBKDF2 password hashing, per-user data isolation
 
 ### Known Gaps
-- No refresh tokens (re-login every 7 days)
-- No password reset / forgot-password flow
+- No error tracking or structured logging (Winston deferred)
 - No email verification on register
-- No rate limiting (brute-force on login endpoint)
-- No input validation (Zod/Joi absent — raw user input passed to DB)
-- No error tracking or structured logging
-- No test coverage (one sample CRA test, nothing else)
-- No production build / deployment pipeline
-- Credentials in `.env` (should not be committed)
+- Credentials in `.env` (gitignored, not committed — see `.env.example`)
 
 ---
 
@@ -224,11 +236,10 @@ frontend/src/
 
 > **Deferred:** Error boundaries, further component extraction (TransactionTable, CsvImportModal as standalone files) — can be done in Phase 5 alongside testing.
 
-### Phase 3 — UI Overhaul 🔄 In Progress
+### Phase 3 — UI Overhaul ✅ Complete
 
 > **Note:** Decided against shadcn/ui — Tailwind + lucide-react + react-hot-toast is lighter and sufficient. shadcn/ui can be added later if needed.
 
-**Done:**
 - [x] Installed Tailwind CSS v3 (CRA-compatible, `tailwind.config.js`, `darkMode: 'class'`)
 - [x] Replaced all `window.alert()` / DOM notification manipulation with `react-hot-toast`
 - [x] New sidebar navigation with lucide-react icons and active states
@@ -238,16 +249,12 @@ frontend/src/
 - [x] Dark mode via `document.documentElement.classList.toggle('dark')` + Tailwind `dark:` variants
 - [x] Mobile sidebar toggle (hamburger menu)
 - [x] Restored shared CSS component classes in App.css (`.card`, `.btn`, `.form-input`, `.styled-table`, etc.) with CSS-variable-based dark mode for child components
-- [x] Fixed dark mode in all child components: Automation inputs, BudgetGoals notification colors, Analytics table header, consistent color variables (`--color-surface`, `--color-input`, `--color-border`)
-
-**Remaining (deferred to Phase 5 alongside component extraction):**
-- [ ] Full Tailwind migration of Analytics, Automation, SpendingTrends (CSS variable system works correctly — low priority)
-
-**Done (Phase 3 wrap-up):**
-- [x] Replaced all `window.alert` calls with `react-hot-toast` in BudgetGoals and Automation
-- [x] Replaced all `window.confirm` delete dialogs with inline "Sure?" two-click pattern (3-second timeout auto-reset) across BudgetGoals, Automation (expected incomes, recurring transactions, report schedules)
-- [x] Added `animate-pulse` Tailwind loading skeletons to BudgetGoals progress cards, Analytics chart, SpendingTrends chart
-- [x] Mobile responsiveness: Automation tables already had `overflow-x: auto`; Analytics listing table has `overflow: auto` sticky-column layout; BudgetGoals grid uses `auto-fit` responsive columns
+- [x] Fixed dark mode in all child components: consistent color variables (`--color-surface`, `--color-input`, `--color-border`)
+- [x] Replaced all `window.confirm` delete dialogs with inline "Sure?" two-click pattern (3-second timeout auto-reset)
+- [x] Added `animate-pulse` Tailwind loading skeletons to BudgetGoals, Analytics chart, SpendingTrends chart
+- [x] Mobile responsiveness throughout
+- [x] Full Tailwind migration of Analytics, Automation, SpendingTrends — removed all three `.css` files
+- [x] Dashboard category breakdown chart: fixed ResizeObserver resize loop (`maintainAspectRatio: false` + fixed `h-72` wrapper); update chart in-place on data change; `refetchOnWindowFocus: false`
 
 ### Phase 4 — Auth Hardening ✅ Complete
 
@@ -286,6 +293,10 @@ frontend/src/
 - [x] Created `backend/db/migrations/001_initial_schema.sql` — complete schema with `user_id` columns, replaces ad-hoc `.sql` dump
 - [x] Added `.env.example` (root) with `MYSQL_ROOT_PASSWORD` + `APP_PORT` documented
 - [x] `.bat` file superseded by `docker compose up -d`
+- [x] Fixed `migrate.js` SQL comment-stripping bug — `--` comment lines before a `CREATE TABLE` caused the entire statement to be silently dropped, triggering FK crash loop on startup; fixed with `sql.replace(/--[^\n]*/g, "")` before splitting
+- [x] Added `./backend:/app/backend` volume mount — backend code changes now take effect with `docker compose restart backend` (no `--build` needed)
+- [x] Configured Gmail SMTP (`smtp.gmail.com:587`) in `backend/.env` — registration confirmation and password reset emails working in Docker
+- [x] `validate.js`: `z.coerce.number()` for all numeric form fields — HTML inputs always send strings; `z.number()` was rejecting them with 400
 
 **Start the full stack:** `docker compose up -d` → app at `http://localhost:3001`
 
