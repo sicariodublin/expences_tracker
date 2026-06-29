@@ -213,7 +213,9 @@ export default function Dashboard() {
       },
       options: {
         responsive: true,
+        animation: false,
         plugins: {
+          datalabels: { display: false },
           legend: { position: "bottom" },
           tooltip: {
             callbacks: { label: (c) => `${c.label}: ${formatCurrency(c.raw)}` },
