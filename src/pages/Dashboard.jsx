@@ -52,10 +52,12 @@ export default function Dashboard() {
   const { data: expenses = [], isPending: expensesLoading } = useQuery({
     queryKey: ["expenses"],
     queryFn: () => apiClient.get("/expenses").then((r) => r.data),
+    refetchOnWindowFocus: false,
   });
   const { data: credits = [] } = useQuery({
     queryKey: ["credits"],
     queryFn: () => apiClient.get("/credits").then((r) => r.data),
+    refetchOnWindowFocus: false,
   });
 
   /* ── Mutations ────────────────────────────────────────────── */
@@ -186,6 +188,7 @@ export default function Dashboard() {
       return;
     }
     if (!chartCanvasRef.current) return;
+
     const totals = {};
     displayExpenses.forEach((e) => {
       totals[e.category] = (totals[e.category] || 0) + (parseFloat(e.amount) || 0);
@@ -194,25 +197,28 @@ export default function Dashboard() {
       totals[c.category] = (totals[c.category] || 0) + (parseFloat(c.amount) || 0);
     });
     const labels = Object.keys(totals);
+    const data = labels.map((l) => Math.round((totals[l] || 0) * 100) / 100);
+
     if (!labels.length) {
       chartInstanceRef.current?.destroy();
       chartInstanceRef.current = null;
       return;
     }
-    chartInstanceRef.current?.destroy();
+
+    // Update in place instead of destroy+recreate to avoid replaying the animation
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.data.labels = labels;
+      chartInstanceRef.current.data.datasets[0].data = data;
+      chartInstanceRef.current.update("none");
+      return;
+    }
+
     chartInstanceRef.current = new Chart(chartCanvasRef.current, {
       type: "doughnut",
-      data: {
-        labels,
-        datasets: [
-          {
-            data: labels.map((l) => Math.round((totals[l] || 0) * 100) / 100),
-            backgroundColor: CHART_COLORS,
-          },
-        ],
-      },
+      data: { labels, datasets: [{ data, backgroundColor: CHART_COLORS }] },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         animation: false,
         plugins: {
           datalabels: { display: false },
@@ -223,6 +229,7 @@ export default function Dashboard() {
         },
       },
     });
+
     return () => {
       chartInstanceRef.current?.destroy();
       chartInstanceRef.current = null;
@@ -714,11 +721,13 @@ export default function Dashboard() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="chart-container">
+            <div className="p-4">
               {displayExpenses.length || displayCredits.length ? (
-                <canvas ref={chartCanvasRef} />
+                <div className="relative h-72">
+                  <canvas ref={chartCanvasRef} />
+                </div>
               ) : (
-                <p className="text-center text-slate-400 text-sm">
+                <p className="text-center text-slate-400 text-sm py-16">
                   Add transactions to view the breakdown.
                 </p>
               )}

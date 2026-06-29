@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
-import "./Automation.css";
 import apiClient from "./api/apiClient";
 import { EXPENSE_CATEGORIES } from "./constants/categories";
 import { formatCurrency } from "./utils/format";
@@ -406,89 +405,123 @@ const Automation = () => {
     );
   }, [reconciliation]);
 
+  const cardCls = "bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm";
+  const inputCls = "w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 dark:placeholder-slate-500";
+  const labelCls = "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1";
+  const btnPrimary = "inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
+  const btnSecondary = "inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium transition-colors";
+  const btnGhost = "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-medium transition-colors";
+  const btnDanger = "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 text-xs font-medium transition-colors";
+  const thCls = "px-3 py-2.5 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-700/50";
+  const tdCls = "px-3 py-2.5 text-sm text-slate-700 dark:text-slate-300";
+
+  const statusColors = {
+    on_track: "border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20",
+    partial:  "border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20",
+    missing:  "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20",
+    late:     "border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20",
+  };
+  const pillColors = {
+    on_track: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+    partial:  "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+    missing:  "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+    late:     "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+  };
+
+  const diff = reconciliationTotals.received - reconciliationTotals.expected;
+
   return (
-    <div className="automation-container">
-      
-      <section className="card automation-card">
-        <div className="card-header">
-          <h2>Expected Income</h2>
+    <div className="space-y-6">
+
+      {/* Expected Income */}
+      <section className={cardCls + " p-6"}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white">Expected Income</h2>
         </div>
-        <form className="grid-form" onSubmit={handleIncomeSubmit}>
-          <input
-            type="text"
-            placeholder="Name"
-            value={newIncome.name}
-            onChange={(e) =>
-              setNewIncome((prev) => ({ ...prev, name: e.target.value }))
-            }
-            required
-          />
-          <select
-            value={newIncome.category}
-            onChange={(e) =>
-              setNewIncome((prev) => ({ ...prev, category: e.target.value }))
-            }
-            required
-          >
-            <option value="">Category</option>
-            {EXPENSE_CATEGORIES.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="Expected amount"
-            value={newIncome.expected_amount}
-            onChange={(e) =>
-              setNewIncome((prev) => ({
-                ...prev,
-                expected_amount: e.target.value,
-              }))
-            }
-            required
-          />
-          <select
-            value={newIncome.frequency}
-            onChange={(e) =>
-              setNewIncome((prev) => ({ ...prev, frequency: e.target.value }))
-            }
-          >
-            {frequencyOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            min="1"
-            max="31"
-            placeholder="Due day (optional)"
-            value={newIncome.due_day}
-            onChange={(e) =>
-              setNewIncome((prev) => ({ ...prev, due_day: e.target.value }))
-            }
-          />
-          <input
-            type="text"
-            placeholder="Notes"
-            value={newIncome.notes}
-            onChange={(e) =>
-              setNewIncome((prev) => ({ ...prev, notes: e.target.value }))
-            }
-          />
-          <div className="form-actions">
-            <button type="submit" className="btn btn-primary">
+        <form onSubmit={handleIncomeSubmit}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+            <input
+              type="text"
+              placeholder="Name"
+              className={inputCls}
+              value={newIncome.name}
+              onChange={(e) =>
+                setNewIncome((prev) => ({ ...prev, name: e.target.value }))
+              }
+              required
+            />
+            <select
+              className={inputCls}
+              value={newIncome.category}
+              onChange={(e) =>
+                setNewIncome((prev) => ({ ...prev, category: e.target.value }))
+              }
+              required
+            >
+              <option value="">Category</option>
+              {EXPENSE_CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Expected amount"
+              className={inputCls}
+              value={newIncome.expected_amount}
+              onChange={(e) =>
+                setNewIncome((prev) => ({
+                  ...prev,
+                  expected_amount: e.target.value,
+                }))
+              }
+              required
+            />
+            <select
+              className={inputCls}
+              value={newIncome.frequency}
+              onChange={(e) =>
+                setNewIncome((prev) => ({ ...prev, frequency: e.target.value }))
+              }
+            >
+              {frequencyOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              min="1"
+              max="31"
+              placeholder="Due day (optional)"
+              className={inputCls}
+              value={newIncome.due_day}
+              onChange={(e) =>
+                setNewIncome((prev) => ({ ...prev, due_day: e.target.value }))
+              }
+            />
+            <input
+              type="text"
+              placeholder="Notes"
+              className={inputCls}
+              value={newIncome.notes}
+              onChange={(e) =>
+                setNewIncome((prev) => ({ ...prev, notes: e.target.value }))
+              }
+            />
+          </div>
+          <div className="flex gap-2 mt-2">
+            <button type="submit" className={btnPrimary}>
               {editingIncome ? "Update Income" : "Add Income"}
             </button>
             {editingIncome && (
               <button
                 type="button"
-                className="btn btn-ghost"
+                className={btnGhost}
                 onClick={() => {
                   setEditingIncome(null);
                   setNewIncome(emptyIncome);
@@ -499,38 +532,38 @@ const Automation = () => {
             )}
           </div>
         </form>
-        <div className="table-wrapper">
-          <table className="styled-table compact">
+        <div className="overflow-x-auto mt-4">
+          <table className="w-full">
             <thead>
-              <tr>
-                <th>Name</th>
-                <th>Category</th>
-                <th>Expected</th>
-                <th>Frequency</th>
-                <th>Due</th>
-                <th>Actions</th>
+              <tr className="border-b border-slate-200 dark:border-slate-700">
+                <th className={thCls}>Name</th>
+                <th className={thCls}>Category</th>
+                <th className={thCls}>Expected</th>
+                <th className={thCls}>Frequency</th>
+                <th className={thCls}>Due</th>
+                <th className={thCls}>Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
               {expectedIncomes.map((income) => (
-                <tr key={income.id}>
-                  <td>{income.name}</td>
-                  <td>{income.category}</td>
-                  <td>{formatCurrency(income.expected_amount)}</td>
-                  <td>{income.frequency}</td>
-                  <td>{income.due_day ? `Day ${income.due_day}` : "-"}</td>
-                  <td>
-                    <div className="table-actions">
+                <tr key={income.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                  <td className={tdCls}>{income.name}</td>
+                  <td className={tdCls}>{income.category}</td>
+                  <td className={tdCls}>{formatCurrency(income.expected_amount)}</td>
+                  <td className={tdCls}>{income.frequency}</td>
+                  <td className={tdCls}>{income.due_day ? `Day ${income.due_day}` : "-"}</td>
+                  <td className={tdCls}>
+                    <div className="flex gap-2">
                       <button
                         type="button"
-                        className="btn btn-ghost btn-sm"
+                        className={btnGhost}
                         onClick={() => handleIncomeEdit(income)}
                       >
                         Edit
                       </button>
                       <button
                         type="button"
-                        className="btn btn-danger btn-sm"
+                        className={btnDanger}
                         onClick={() => handleIncomeDelete(income.id)}
                       >
                         {confirmIncomeId === income.id ? "Sure?" : "Delete"}
@@ -541,7 +574,7 @@ const Automation = () => {
               ))}
               {expectedIncomes.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="empty-state">
+                  <td colSpan={6} className="px-3 py-8 text-center text-sm text-slate-400 dark:text-slate-500">
                     No expected incomes configured yet.
                   </td>
                 </tr>
@@ -551,70 +584,63 @@ const Automation = () => {
         </div>
       </section>
 
-      <section className="card automation-card">
-        <div className="card-header">
-          <h2>Income Reconciliation</h2>
-          <div className="recon-controls">
-            <input
-              type="month"
-              value={reconciliationMonth}
-              onChange={(e) => setReconciliationMonth(e.target.value)}
-              max={todayMonth}
-            />
-          </div>
+      {/* Income Reconciliation */}
+      <section className={cardCls + " p-6"}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white">Income Reconciliation</h2>
+          <input
+            type="month"
+            className={inputCls.replace("w-full", "w-auto")}
+            value={reconciliationMonth}
+            onChange={(e) => setReconciliationMonth(e.target.value)}
+            max={todayMonth}
+          />
         </div>
         {isReconLoading ? (
-          <p className="loading-state">Loading reconciliation...</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 py-4">Loading reconciliation...</p>
         ) : (
           <>
-            <div className="recon-summary">
-              <div>
-                <span className="label">Expected</span>
-                <strong>{formatCurrency(reconciliationTotals.expected)}</strong>
+            <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="text-center">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Expected</p>
+                <p className="text-lg font-bold text-slate-900 dark:text-white">{formatCurrency(reconciliationTotals.expected)}</p>
               </div>
-              <div>
-                <span className="label">Received</span>
-                <strong>{formatCurrency(reconciliationTotals.received)}</strong>
+              <div className="text-center">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Received</p>
+                <p className="text-lg font-bold text-slate-900 dark:text-white">{formatCurrency(reconciliationTotals.received)}</p>
               </div>
-              <div>
-                <span className="label">Difference</span>
-                <strong>
-                  {formatCurrency(
-                    reconciliationTotals.received -
-                      reconciliationTotals.expected
-                  )}
-                </strong>
+              <div className="text-center">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Difference</p>
+                <p className={`text-lg font-bold ${diff >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                  {formatCurrency(diff)}
+                </p>
               </div>
             </div>
-            <div className="recon-grid">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {reconciliation.map((record) => (
                 <article
                   key={record.income.id}
-                  className={`recon-card status-${record.status}`}
+                  className={`rounded-xl border p-4 ${statusColors[record.status] || "border-slate-200 dark:border-slate-700"}`}
                 >
-                  <header>
-                    <h3>{record.income.name}</h3>
-                    <span className="status-pill">{record.status}</span>
-                  </header>
-                  <p>Category: {record.income.category}</p>
-                  <p>
-                    Expected: {formatCurrency(record.income.expected_amount)} by{" "}
-                    {record.dueDate}
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">{record.income.name}</h3>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${pillColors[record.status] || ""}`}>{record.status}</span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Category: {record.income.category}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Expected: {formatCurrency(record.income.expected_amount)} by {record.dueDate}
                   </p>
-                  <p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     Received: {formatCurrency(record.receivedAmount)}{" "}
-                    {record.lastReceived
-                      ? `(last on ${record.lastReceived})`
-                      : ""}
+                    {record.lastReceived ? `(last on ${record.lastReceived})` : ""}
                   </p>
                   {record.receivedRecords.length > 0 && (
-                    <details>
-                      <summary>View receipts</summary>
-                      <ul>
+                    <details className="mt-2">
+                      <summary className="text-xs text-blue-600 dark:text-blue-400 cursor-pointer">View receipts</summary>
+                      <ul className="mt-1 space-y-0.5">
                         {record.receivedRecords.map((credit) => (
-                          <li key={credit.id}>
-                            {credit.date} - {credit.name}:{" "}
-                            {formatCurrency(credit.amount)}
+                          <li key={credit.id} className="text-xs text-slate-500 dark:text-slate-400">
+                            {credit.date} - {credit.name}: {formatCurrency(credit.amount)}
                           </li>
                         ))}
                       </ul>
@@ -623,7 +649,7 @@ const Automation = () => {
                 </article>
               ))}
               {reconciliation.length === 0 && (
-                <p className="empty-state">
+                <p className="col-span-full text-sm text-center text-slate-400 dark:text-slate-500 py-8">
                   No expected incomes found for reconciliation.
                 </p>
               )}
@@ -632,140 +658,151 @@ const Automation = () => {
         )}
       </section>
 
-      <section className="card automation-card">
-        <div className="card-header">
-          <h2>Recurring Transactions</h2>
+      {/* Recurring Transactions */}
+      <section className={cardCls + " p-6"}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white">Recurring Transactions</h2>
         </div>
-        <form className="grid-form" onSubmit={handleRecurringSubmit}>
-          <select
-            value={newRecurring.type}
-            onChange={(e) =>
-              setNewRecurring((prev) => ({ ...prev, type: e.target.value }))
-            }
-          >
-            <option value="expense">Expense</option>
-            <option value="credit">Income</option>
-          </select>
-          <input
-            type="text"
-            placeholder="Name"
-            value={newRecurring.name}
-            onChange={(e) =>
-              setNewRecurring((prev) => ({ ...prev, name: e.target.value }))
-            }
-            required
-          />
-          <select
-            value={newRecurring.category}
-            onChange={(e) =>
-              setNewRecurring((prev) => ({ ...prev, category: e.target.value }))
-            }
-            required
-          >
-            <option value="">Category</option>
-            {EXPENSE_CATEGORIES.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="Amount"
-            value={newRecurring.amount}
-            onChange={(e) =>
-              setNewRecurring((prev) => ({ ...prev, amount: e.target.value }))
-            }
-            required
-          />
-          <select
-            value={newRecurring.frequency}
-            onChange={(e) =>
-              setNewRecurring((prev) => ({
-                ...prev,
-                frequency: e.target.value,
-              }))
-            }
-          >
-            {recurringFrequencyOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            min="1"
-            max="31"
-            placeholder="Day of month"
-            value={newRecurring.dayOfMonth}
-            onChange={(e) =>
-              setNewRecurring((prev) => ({
-                ...prev,
-                dayOfMonth: e.target.value,
-              }))
-            }
-          />
-          <select
-            value={newRecurring.weekday}
-            onChange={(e) =>
-              setNewRecurring((prev) => ({
-                ...prev,
-                weekday: e.target.value,
-              }))
-            }
-          >
-            <option value="">Weekday (optional)</option>
-            {weekdayLabels.map((label, index) => (
-              <option key={label} value={index}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <input
-            type="date"
-            value={newRecurring.startDate}
-            onChange={(e) =>
-              setNewRecurring((prev) => ({
-                ...prev,
-                startDate: e.target.value,
-              }))
-            }
-          />
-          <div className="form-actions">
-            <button type="submit" className="btn btn-primary">
+        <form onSubmit={handleRecurringSubmit}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+            <select
+              className={inputCls}
+              value={newRecurring.type}
+              onChange={(e) =>
+                setNewRecurring((prev) => ({ ...prev, type: e.target.value }))
+              }
+            >
+              <option value="expense">Expense</option>
+              <option value="credit">Income</option>
+            </select>
+            <input
+              type="text"
+              placeholder="Name"
+              className={inputCls}
+              value={newRecurring.name}
+              onChange={(e) =>
+                setNewRecurring((prev) => ({ ...prev, name: e.target.value }))
+              }
+              required
+            />
+            <select
+              className={inputCls}
+              value={newRecurring.category}
+              onChange={(e) =>
+                setNewRecurring((prev) => ({ ...prev, category: e.target.value }))
+              }
+              required
+            >
+              <option value="">Category</option>
+              {EXPENSE_CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Amount"
+              className={inputCls}
+              value={newRecurring.amount}
+              onChange={(e) =>
+                setNewRecurring((prev) => ({ ...prev, amount: e.target.value }))
+              }
+              required
+            />
+            <select
+              className={inputCls}
+              value={newRecurring.frequency}
+              onChange={(e) =>
+                setNewRecurring((prev) => ({
+                  ...prev,
+                  frequency: e.target.value,
+                }))
+              }
+            >
+              {recurringFrequencyOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              min="1"
+              max="31"
+              placeholder="Day of month"
+              className={inputCls}
+              value={newRecurring.dayOfMonth}
+              onChange={(e) =>
+                setNewRecurring((prev) => ({
+                  ...prev,
+                  dayOfMonth: e.target.value,
+                }))
+              }
+            />
+            <select
+              className={inputCls}
+              value={newRecurring.weekday}
+              onChange={(e) =>
+                setNewRecurring((prev) => ({
+                  ...prev,
+                  weekday: e.target.value,
+                }))
+              }
+            >
+              <option value="">Weekday (optional)</option>
+              {weekdayLabels.map((label, index) => (
+                <option key={label} value={index}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <input
+              type="date"
+              className={inputCls}
+              value={newRecurring.startDate}
+              onChange={(e) =>
+                setNewRecurring((prev) => ({
+                  ...prev,
+                  startDate: e.target.value,
+                }))
+              }
+            />
+          </div>
+          <div className="flex gap-2 mt-2">
+            <button type="submit" className={btnPrimary}>
               Add Recurring
             </button>
           </div>
         </form>
-        <div className="table-wrapper">
-          <table className="styled-table compact">
+        <div className="overflow-x-auto mt-4">
+          <table className="w-full">
             <thead>
-              <tr>
-                <th>Type</th>
-                <th>Name</th>
-                <th>Category</th>
-                <th>Amount</th>
-                <th>Frequency</th>
-                <th>Next Run</th>
-                <th></th>
+              <tr className="border-b border-slate-200 dark:border-slate-700">
+                <th className={thCls}>Type</th>
+                <th className={thCls}>Name</th>
+                <th className={thCls}>Category</th>
+                <th className={thCls}>Amount</th>
+                <th className={thCls}>Frequency</th>
+                <th className={thCls}>Next Run</th>
+                <th className={thCls}></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
               {recurringTransactions.map((tx) => (
-                <tr key={tx.id}>
-                  <td>{tx.type}</td>
-                  <td>{tx.name}</td>
-                  <td>{tx.category}</td>
-                  <td>{formatCurrency(tx.amount)}</td>
-                  <td>{tx.frequency}</td>
-                  <td>{tx.next_run_date}</td>
-                  <td>
+                <tr key={tx.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                  <td className={tdCls}>{tx.type}</td>
+                  <td className={tdCls}>{tx.name}</td>
+                  <td className={tdCls}>{tx.category}</td>
+                  <td className={tdCls}>{formatCurrency(tx.amount)}</td>
+                  <td className={tdCls}>{tx.frequency}</td>
+                  <td className={tdCls}>{tx.next_run_date}</td>
+                  <td className={tdCls}>
                     <button
                       type="button"
-                      className="btn btn-danger btn-sm"
+                      className={btnDanger}
                       onClick={() => handleRecurringDelete(tx.id)}
                     >
                       {confirmRecurringId === tx.id ? "Sure?" : "Delete"}
@@ -775,7 +812,7 @@ const Automation = () => {
               ))}
               {recurringTransactions.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="empty-state">
+                  <td colSpan={7} className="px-3 py-8 text-center text-sm text-slate-400 dark:text-slate-500">
                     No recurring transactions configured.
                   </td>
                 </tr>
@@ -785,96 +822,109 @@ const Automation = () => {
         </div>
       </section>
 
-      <section className="card automation-card">
-        <div className="card-header">
-          <h2>Email Settings</h2>
+      {/* Email Settings */}
+      <section className={cardCls + " p-6"}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white">Email Settings</h2>
         </div>
-        <div className="grid-form">
-          <label>
-            Provider
-            <select value={emailProvider} onChange={(e) => setEmailProvider(e.target.value)}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className={labelCls}>Provider</label>
+            <select className={inputCls} value={emailProvider} onChange={(e) => setEmailProvider(e.target.value)}>
               <option value="">Select...</option>
               <option value="sendgrid">SendGrid</option>
               <option value="outlook">Outlook</option>
               <option value="smtp">Generic SMTP</option>
             </select>
-          </label>
-          <label>
-            From Email
-            <input type="email" value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} />
-          </label>
-          <label>
-            SendGrid API Key
-            <input type="password" value={sendgridKey} onChange={(e) => setSendgridKey(e.target.value)} />
-          </label>
-          <label>
-            SMTP Host
-            <input type="text" value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} />
-          </label>
-          <label>
-            SMTP Port
-            <input type="number" value={smtpPort} onChange={(e) => setSmtpPort(Number(e.target.value) || 0)} />
-          </label>
-          <label>
-            SMTP User
-            <input type="text" value={smtpUser} onChange={(e) => setSmtpUser(e.target.value)} />
-          </label>
-          <label>
-            SMTP Password / App Password
-            <input type="password" value={smtpPass} onChange={(e) => setSmtpPass(e.target.value)} />
-          </label>
-          <div className="form-actions">
-            <button type="button" className="btn btn-secondary" onClick={saveEmailSettings}>Save Email Settings</button>
+          </div>
+          <div>
+            <label className={labelCls}>From Email</label>
+            <input type="email" className={inputCls} value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} />
+          </div>
+          <div>
+            <label className={labelCls}>SendGrid API Key</label>
+            <input type="password" className={inputCls} value={sendgridKey} onChange={(e) => setSendgridKey(e.target.value)} />
+          </div>
+          <div>
+            <label className={labelCls}>SMTP Host</label>
+            <input type="text" className={inputCls} value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} />
+          </div>
+          <div>
+            <label className={labelCls}>SMTP Port</label>
+            <input type="number" className={inputCls} value={smtpPort} onChange={(e) => setSmtpPort(Number(e.target.value) || 0)} />
+          </div>
+          <div>
+            <label className={labelCls}>SMTP User</label>
+            <input type="text" className={inputCls} value={smtpUser} onChange={(e) => setSmtpUser(e.target.value)} />
+          </div>
+          <div>
+            <label className={labelCls}>SMTP Password / App Password</label>
+            <input type="password" className={inputCls} value={smtpPass} onChange={(e) => setSmtpPass(e.target.value)} />
           </div>
         </div>
+        <button type="button" className={btnSecondary} onClick={saveEmailSettings}>Save Email Settings</button>
       </section>
 
-      <section className="card automation-card">
-        <div className="card-header">
-          <h2>Reports & Scheduling</h2>
+      {/* Reports & Scheduling */}
+      <section className={cardCls + " p-6"}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white">Reports &amp; Scheduling</h2>
         </div>
-        <div className="email-status-bar">
-          <div>
-            <strong>Email Status:</strong>
+
+        {/* Email Status Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6 p-4 rounded-lg bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-700">
+          <div className="text-sm text-slate-700 dark:text-slate-300">
+            <strong>Email Status: </strong>
             {isEmailLoading ? (
-              <span className="loading-state"> Checking...</span>
+              <span> Checking...</span>
             ) : emailStatus ? (
               <span>
-                {emailStatus.verified ? "Verified" : "Not verified"} {emailStatus.configured ? "(configured)" : "(not configured)"}
+                {emailStatus.verified ? "Verified" : "Not verified"}{" "}
+                {emailStatus.configured ? "(configured)" : "(not configured)"}
               </span>
             ) : (
               <span>Unknown</span>
             )}
           </div>
-          <div className="email-actions">
-            <button type="button" className="btn btn-outline btn-sm" onClick={fetchEmailStatus}>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" className={btnGhost} onClick={fetchEmailStatus}>
               Refresh status
             </button>
             <input
               type="email"
+              className={inputCls.replace("w-full", "w-auto")}
               placeholder="Send test to..."
               value={testEmail}
               onChange={(e) => setTestEmail(e.target.value)}
               style={{ maxWidth: 240 }}
             />
-            <button type="button" className="btn btn-primary btn-sm" onClick={sendTestEmail} disabled={isSendingTest}>
+            <button
+              type="button"
+              className={btnPrimary.replace("px-4 py-2", "px-3 py-1.5 text-xs")}
+              onClick={sendTestEmail}
+              disabled={isSendingTest}
+            >
               {isSendingTest ? "Sending..." : "Send test"}
             </button>
           </div>
-          {emailStatus && emailStatus.transport && (
-            <div className="email-details">
+          {emailStatus?.transport && (
+            <div className="flex gap-4 text-xs text-slate-400 dark:text-slate-500 w-full">
               <span>Host: {emailStatus.transport.host}</span>
               <span>Port: {emailStatus.transport.port}</span>
               <span>Secure: {String(emailStatus.transport.secure)}</span>
             </div>
           )}
         </div>
-        <div className="report-grid">
-          <form className="export-form" onSubmit={handleExport}>
-            <h3>Export on demand</h3>
-            <label>
-              Format
+
+        {/* Report Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Export on demand */}
+          <form onSubmit={handleExport} className="space-y-3">
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Export on demand</h3>
+            <div>
+              <label className={labelCls}>Format</label>
               <select
+                className={inputCls}
                 value={exportFormat}
                 onChange={(e) => setExportFormat(e.target.value)}
               >
@@ -884,51 +934,55 @@ const Automation = () => {
                   </option>
                 ))}
               </select>
-            </label>
-            <div className="date-range">
-              <label>
-                Start date
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>Start date</label>
                 <input
                   type="date"
+                  className={inputCls}
                   value={exportStart}
                   onChange={(e) => setExportStart(e.target.value)}
                 />
-              </label>
-              <label>
-                End date
+              </div>
+              <div>
+                <label className={labelCls}>End date</label>
                 <input
                   type="date"
+                  className={inputCls}
                   value={exportEnd}
                   onChange={(e) => setExportEnd(e.target.value)}
                 />
-              </label>
+              </div>
             </div>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={isExporting}
-            >
+            <button type="submit" className={btnPrimary} disabled={isExporting}>
               {isExporting ? "Generating..." : "Download report"}
             </button>
           </form>
 
-          <form className="schedule-form" onSubmit={handleScheduleSubmit}>
-            <h3>Schedule reports</h3>
-            <input
-              type="email"
-              placeholder="Recipient email"
-              value={newSchedule.recipient_email}
-              onChange={(e) =>
-                setNewSchedule((prev) => ({
-                  ...prev,
-                  recipient_email: e.target.value,
-                }))
-              }
-              required
-            />
-            <label>
-              Format
+          {/* Schedule reports */}
+          <form onSubmit={handleScheduleSubmit} className="space-y-3">
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Schedule reports</h3>
+            <div>
+              <label className={labelCls}>Recipient email</label>
+              <input
+                type="email"
+                className={inputCls}
+                placeholder="Recipient email"
+                value={newSchedule.recipient_email}
+                onChange={(e) =>
+                  setNewSchedule((prev) => ({
+                    ...prev,
+                    recipient_email: e.target.value,
+                  }))
+                }
+                required
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Format</label>
               <select
+                className={inputCls}
                 value={newSchedule.format}
                 onChange={(e) =>
                   setNewSchedule((prev) => ({
@@ -943,10 +997,11 @@ const Automation = () => {
                   </option>
                 ))}
               </select>
-            </label>
-            <label>
-              Frequency
+            </div>
+            <div>
+              <label className={labelCls}>Frequency</label>
               <select
+                className={inputCls}
                 value={newSchedule.frequency}
                 onChange={(e) =>
                   setNewSchedule((prev) => ({
@@ -961,11 +1016,12 @@ const Automation = () => {
                   </option>
                 ))}
               </select>
-            </label>
-            <label>
-              First send date
+            </div>
+            <div>
+              <label className={labelCls}>First send date</label>
               <input
                 type="date"
+                className={inputCls}
                 value={newSchedule.next_send_date}
                 onChange={(e) =>
                   setNewSchedule((prev) => ({
@@ -974,46 +1030,48 @@ const Automation = () => {
                   }))
                 }
               />
-            </label>
-            <button type="submit" className="btn btn-secondary">
+            </div>
+            <button type="submit" className={btnSecondary}>
               Create schedule
             </button>
           </form>
         </div>
-        <div className="table-wrapper">
-          <table className="styled-table compact">
+
+        {/* Scheduled reports table */}
+        <div className="overflow-x-auto mt-4">
+          <table className="w-full">
             <thead>
-              <tr>
-                <th>Email</th>
-                <th>Format</th>
-                <th>Frequency</th>
-                <th>Next Send</th>
-                <th>Status</th>
-                <th></th>
-                <th></th>
+              <tr className="border-b border-slate-200 dark:border-slate-700">
+                <th className={thCls}>Email</th>
+                <th className={thCls}>Format</th>
+                <th className={thCls}>Frequency</th>
+                <th className={thCls}>Next Send</th>
+                <th className={thCls}>Status</th>
+                <th className={thCls}></th>
+                <th className={thCls}></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
               {reportSchedules.map((schedule) => (
-                <tr key={schedule.id}>
-                  <td>{schedule.recipient_email}</td>
-                  <td>{schedule.format}</td>
-                  <td>{schedule.frequency}</td>
-                  <td>{schedule.next_send_date}</td>
-                  <td>{schedule.is_active ? "Active" : "Paused"}</td>
-                  <td>
+                <tr key={schedule.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                  <td className={tdCls}>{schedule.recipient_email}</td>
+                  <td className={tdCls}>{schedule.format}</td>
+                  <td className={tdCls}>{schedule.frequency}</td>
+                  <td className={tdCls}>{schedule.next_send_date}</td>
+                  <td className={tdCls}>{schedule.is_active ? "Active" : "Paused"}</td>
+                  <td className={tdCls}>
                     <button
                       type="button"
-                      className="btn btn-danger btn-sm"
+                      className={btnDanger}
                       onClick={() => handleScheduleDelete(schedule.id)}
                     >
                       {confirmScheduleId === schedule.id ? "Sure?" : "Delete"}
                     </button>
                   </td>
-                  <td>
+                  <td className={tdCls}>
                     <button
                       type="button"
-                      className="btn btn-primary btn-sm"
+                      className={btnPrimary.replace("px-4 py-2", "px-3 py-1.5 text-xs")}
                       onClick={() => sendScheduleNow(schedule.id)}
                       disabled={sendingScheduleId === schedule.id}
                     >
@@ -1024,7 +1082,7 @@ const Automation = () => {
               ))}
               {reportSchedules.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="empty-state">
+                  <td colSpan={7} className="px-3 py-8 text-center text-sm text-slate-400 dark:text-slate-500">
                     No scheduled reports yet.
                   </td>
                 </tr>

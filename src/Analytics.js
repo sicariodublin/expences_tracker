@@ -2,7 +2,6 @@ import Chart from "chart.js/auto";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bar, Doughnut, Line } from "react-chartjs-2";
-import "./Analytics.css";
 import apiClient from "./api/apiClient";
 import { EXPENSE_CATEGORIES } from "./constants/categories";
 import { formatCurrency, formatPercentage } from "./utils/format";
@@ -189,7 +188,7 @@ const Analytics = () => {
     [categoryBreakdown]
   );
 
-  
+
 
   // Listing view matrix: monthly totals
   // - Expenses per category (excluding "Income"), shown as negative values
@@ -229,27 +228,10 @@ const Analytics = () => {
       incomeByMonth[idx] += amount;
     });
 
-    
+
 
     return { expenseCats, expensesTotals, incomeByMonth };
   }, [expenses, credits, categories, selectedCategory, selectedYear]);
-  const monthlyCategoryTotals = useMemo(() => {
-    const cats = selectedCategory ? [selectedCategory] : categories;
-    const totals = Array.from({ length: 12 }, () =>
-      Object.fromEntries(cats.map((c) => [c, 0]))
-    );
-    expenses.forEach((exp) => {
-      const amount = parseFloat(exp.amount) || 0;
-      if (!amount) return;
-      const { year, month } = getDateParts(exp.date);
-      if (year !== selectedYear) return;
-      const cat = exp.category;
-      if (!cats.includes(cat)) return;
-      const idx = Number(month) - 1;
-      totals[idx][cat] += amount;
-    });
-    return { cats, totals };
-  }, [expenses, categories, selectedCategory, selectedYear]);
   const chartData = useMemo(() => {
     if (loading) {
       return { labels: [], datasets: [] };
@@ -555,18 +537,23 @@ const Analytics = () => {
         ) ?? 0
       : 0;
 
+  const cardCls = "bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm";
+  const inputCls = "rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent";
+  const labelCls = "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1";
+  const thCls = "px-3 py-2 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-700/50";
+
   return (
-    <section className="analytics-container">
-      <header className="analytics-header">
-        <h2>Analytics</h2>
-        <div className="analytics-controls">
-          <div className="control-group">
-            <label className="form-label" htmlFor="analytics-view">
-              View
-            </label>
+    <section className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Analytics</h2>
+        <div className="flex flex-wrap items-end gap-4">
+          {/* View control */}
+          <div>
+            <label className={labelCls} htmlFor="analytics-view">View</label>
             <select
               id="analytics-view"
-              className="form-input"
+              className={inputCls + " w-36"}
               value={viewType}
               onChange={(event) => setViewType(event.target.value)}
             >
@@ -576,13 +563,12 @@ const Analytics = () => {
             </select>
           </div>
 
-          <div className="control-group">
-            <label className="form-label" htmlFor="analytics-chart">
-              Chart
-            </label>
+          {/* Chart control */}
+          <div>
+            <label className={labelCls} htmlFor="analytics-chart">Chart</label>
             <select
               id="analytics-chart"
-              className="form-input"
+              className={inputCls + " w-36"}
               value={chartType}
               onChange={(event) => setChartType(event.target.value)}
             >
@@ -593,70 +579,50 @@ const Analytics = () => {
             </select>
           </div>
 
+          {/* Listing options: include income checkbox */}
           {chartType === "listing" && (
-            <div className="control-group">
-              <label className="form-label">Options</label>
-              <div className="toggle-row">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={includeIncome}
-                    onChange={(e) => setIncludeIncome(e.target.checked)}
-                  />{" "}
-                  Include Income
-                </label>
-              </div>
+            <div className="flex items-center gap-2 pt-5">
+              <input
+                type="checkbox"
+                id="include-income"
+                checked={includeIncome}
+                onChange={(e) => setIncludeIncome(e.target.checked)}
+                className="rounded"
+              />
+              <label htmlFor="include-income" className="text-sm text-slate-600 dark:text-slate-300">Include Income</label>
             </div>
           )}
 
+          {/* Month control (monthly view only) */}
           {viewType === "monthly" && (
-            <>
-              <div className="control-group">
-                <label className="form-label" htmlFor="analytics-month">
-                  Month
-                </label>
-                <select
-                  id="analytics-month"
-                  className="form-input"
-                  value={selectedMonth}
-                  onChange={(event) => setSelectedMonth(event.target.value)}
-                >
-                  {MONTH_NAMES.map((name, index) => {
-                    const value = String(index + 1).padStart(2, "0");
-                    return (
-                      <option key={value} value={value}>
-                        {name}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-              <div className="control-group">
-                <label className="form-label" htmlFor="analytics-year">
-                  Year
-                </label>
-                <input
-                  id="analytics-year"
-                  type="number"
-                  className="form-input"
-                  value={selectedYear}
-                  onChange={(event) => setSelectedYear(event.target.value)}
-                  min="2000"
-                  max={today.getFullYear()}
-                />
-              </div>
-            </>
+            <div>
+              <label className={labelCls} htmlFor="analytics-month">Month</label>
+              <select
+                id="analytics-month"
+                className={inputCls + " w-28"}
+                value={selectedMonth}
+                onChange={(event) => setSelectedMonth(event.target.value)}
+              >
+                {MONTH_NAMES.map((name, index) => {
+                  const value = String(index + 1).padStart(2, "0");
+                  return (
+                    <option key={value} value={value}>
+                      {name}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
           )}
 
-          {viewType !== "monthly" && (
-            <div className="control-group">
-              <label className="form-label" htmlFor="analytics-year-general">
-                Year
-              </label>
+          {/* Year control (monthly view) */}
+          {viewType === "monthly" && (
+            <div>
+              <label className={labelCls} htmlFor="analytics-year">Year</label>
               <input
-                id="analytics-year-general"
+                id="analytics-year"
                 type="number"
-                className="form-input"
+                className={inputCls + " w-24"}
                 value={selectedYear}
                 onChange={(event) => setSelectedYear(event.target.value)}
                 min="2000"
@@ -665,13 +631,28 @@ const Analytics = () => {
             </div>
           )}
 
-          <div className="control-group">
-            <label className="form-label" htmlFor="analytics-category">
-              Category
-            </label>
+          {/* Year control (non-monthly views) */}
+          {viewType !== "monthly" && (
+            <div>
+              <label className={labelCls} htmlFor="analytics-year-general">Year</label>
+              <input
+                id="analytics-year-general"
+                type="number"
+                className={inputCls + " w-24"}
+                value={selectedYear}
+                onChange={(event) => setSelectedYear(event.target.value)}
+                min="2000"
+                max={today.getFullYear()}
+              />
+            </div>
+          )}
+
+          {/* Category control */}
+          <div>
+            <label className={labelCls} htmlFor="analytics-category">Category</label>
             <select
               id="analytics-category"
-              className="form-input"
+              className={inputCls + " w-40"}
               value={selectedCategory}
               onChange={(event) => setSelectedCategory(event.target.value)}
             >
@@ -684,28 +665,28 @@ const Analytics = () => {
             </select>
           </div>
         </div>
-      </header>
+      </div>
 
-      <section className="analytics-summary">
-        <article className="summary-card">
-          <span className="summary-label">Expenses</span>
-          <span className="summary-value">{formatCurrency(totalExpenses)}</span>
-        </article>
-        <article className="summary-card">
-          <span className="summary-label">Income</span>
-          <span className="summary-value">{formatCurrency(totalIncome)}</span>
-        </article>
-        <article
-          className={`summary-card ${
-            netAmount >= 0 ? "positive" : "negative"
-          }`}
-        >
-          <span className="summary-label">Net</span>
-          <span className="summary-value">{formatCurrency(netAmount)}</span>
-        </article>
-      </section>
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className={cardCls + " p-5"}>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Expenses</p>
+          <p className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(totalExpenses)}</p>
+        </div>
+        <div className={cardCls + " p-5"}>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Income</p>
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(totalIncome)}</p>
+        </div>
+        <div className={cardCls + " p-5 " + (netAmount >= 0 ? "border-l-4 border-l-green-500" : "border-l-4 border-l-red-500")}>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Net</p>
+          <p className={`text-2xl font-bold ${netAmount >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+            {formatCurrency(netAmount)}
+          </p>
+        </div>
+      </div>
 
-      <section className="analytics-chart card">
+      {/* Chart card */}
+      <div className={cardCls + " p-6"}>
         {loading ? (
           <div className="animate-pulse flex flex-col gap-3 min-h-[340px] justify-center px-4">
             <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/4" />
@@ -716,66 +697,60 @@ const Analytics = () => {
             </div>
           </div>
         ) : activeDataset === 0 && chartType !== "listing" ? (
-          <div className="empty-state">
-            <p>No transactions available for the selected filters.</p>
-          </div>
+          <p className="text-center text-slate-400 dark:text-slate-500 py-16">No transactions available for the selected filters.</p>
         ) : chartType === "listing" ? (
-          <div className="listing-wrapper">
-            <table className="styled-table compact">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
               <thead>
                 <tr>
-                  <th className="month-header" rowSpan={2}>Month</th>
+                  <th rowSpan={2} className={thCls + " sticky left-0 bg-slate-50 dark:bg-slate-700/50"}>Month</th>
                   <th
-                    className="group-expenses"
                     colSpan={monthlyCategoryMatrix.expenseCats.length}
+                    className="px-3 py-1.5 text-center text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border-b border-slate-200 dark:border-slate-700"
                   >
                     Expenses
                   </th>
                   {includeIncome && (
-                    <th className="group-income" colSpan={1}>
+                    <th
+                      colSpan={1}
+                      className="px-3 py-1.5 text-center text-xs font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border-b border-slate-200 dark:border-slate-700"
+                    >
                       Income
                     </th>
                   )}
                 </tr>
                 <tr>
                   {monthlyCategoryMatrix.expenseCats.map((cat) => (
-                    <th key={`exp-${cat}`} className="cat-header cat-expenses">
-                      {cat}
-                    </th>
+                    <th key={`exp-${cat}`} className="px-2 py-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-red-50/50 dark:bg-red-900/10 whitespace-nowrap">{cat}</th>
                   ))}
                   {includeIncome && (
-                    <th className="cat-header cat-income">Income</th>
+                    <th className="px-2 py-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-green-50/50 dark:bg-green-900/10">Income</th>
                   )}
                 </tr>
               </thead>
               <tbody>
                 {MONTH_NAMES.map((name, idx) => (
-                  <tr key={name}>
-                    <td className="month-cell">{name}</td>
+                  <tr key={name} className="border-t border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                    <td className="px-3 py-2 font-medium text-slate-600 dark:text-slate-300 sticky left-0 bg-white dark:bg-slate-800">{name}</td>
                     {monthlyCategoryMatrix.expenseCats.map((cat) => {
                       const raw = monthlyCategoryMatrix.expensesTotals[idx][cat] || 0;
-                      const val = -raw; // show expenses as negative
-                      const cls =
-                        val < 0 ? "negative-cell" :
-                        val > 0 ? "positive-cell" :
-                        "zero-cell";
+                      const val = -raw;
                       return (
-                        <td key={`exp-${idx}-${cat}`} className={`num-cell ${cls}`}>
+                        <td key={`exp-${idx}-${cat}`} className={`px-2 py-2 text-right tabular-nums ${
+                          val < 0 ? "text-red-600 dark:text-red-400" :
+                          val > 0 ? "text-green-600 dark:text-green-400" :
+                          "text-slate-300 dark:text-slate-600"
+                        }`}>
                           {formatCurrency(val)}
                         </td>
                       );
                     })}
                     {includeIncome && (
-                      <td
-                        key={`inc-${idx}`}
-                        className={`num-cell ${
-                          (monthlyCategoryMatrix.incomeByMonth[idx] || 0) > 0
-                            ? "positive-cell"
-                            : (monthlyCategoryMatrix.incomeByMonth[idx] || 0) < 0
-                            ? "negative-cell"
-                            : "zero-cell"
-                        }`}
-                      >
+                      <td className={`px-2 py-2 text-right tabular-nums ${
+                        (monthlyCategoryMatrix.incomeByMonth[idx] || 0) > 0 ? "text-green-600 dark:text-green-400" :
+                        (monthlyCategoryMatrix.incomeByMonth[idx] || 0) < 0 ? "text-red-600 dark:text-red-400" :
+                        "text-slate-300 dark:text-slate-600"
+                      }`}>
                         {formatCurrency(monthlyCategoryMatrix.incomeByMonth[idx] || 0)}
                       </td>
                     )}
@@ -783,83 +758,75 @@ const Analytics = () => {
                 ))}
               </tbody>
               <tfoot>
-                <tr>
-                  <th className="month-header">Total</th>
+                <tr className="border-t-2 border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 font-semibold">
+                  <th className="px-3 py-2 text-left text-xs text-slate-600 dark:text-slate-300 sticky left-0 bg-slate-50 dark:bg-slate-700/50">Total</th>
                   {monthlyCategoryMatrix.expenseCats.map((cat) => {
                     const totalRaw = monthlyCategoryMatrix.expensesTotals.reduce(
                       (sum, row) => sum + (row[cat] || 0),
                       0
                     );
                     const totalVal = -totalRaw;
-                    const totalCls =
-                      totalVal < 0 ? "negative-cell" :
-                      totalVal > 0 ? "positive-cell" :
-                      "zero-cell";
                     return (
-                      <th key={`exp-total-${cat}`} className={`num-cell ${totalCls}`}>
+                      <th key={`exp-total-${cat}`} className={`px-2 py-2 text-right tabular-nums font-semibold ${
+                        totalVal < 0 ? "text-red-600 dark:text-red-400" :
+                        totalVal > 0 ? "text-green-600 dark:text-green-400" :
+                        "text-slate-300 dark:text-slate-600"
+                      }`}>
                         {formatCurrency(totalVal)}
                       </th>
                     );
                   })}
-                  {includeIncome && (
-                    <th
-                      className={`num-cell ${
-                        monthlyCategoryMatrix.incomeByMonth.reduce(
-                          (sum, value) => sum + (value || 0),
-                          0
-                        ) > 0
-                          ? "positive-cell"
-                          : monthlyCategoryMatrix.incomeByMonth.reduce(
-                              (sum, value) => sum + (value || 0),
-                              0
-                            ) < 0
-                          ? "negative-cell"
-                          : "zero-cell"
-                      }`}
-                    >
-                      {formatCurrency(
-                        monthlyCategoryMatrix.incomeByMonth.reduce(
-                          (sum, value) => sum + (value || 0),
-                          0
-                        )
-                      )}
-                    </th>
-                  )}
+                  {includeIncome && (() => {
+                    const incomeTotal = monthlyCategoryMatrix.incomeByMonth.reduce(
+                      (sum, value) => sum + (value || 0),
+                      0
+                    );
+                    return (
+                      <th className={`px-2 py-2 text-right tabular-nums font-semibold ${
+                        incomeTotal > 0 ? "text-green-600 dark:text-green-400" :
+                        incomeTotal < 0 ? "text-red-600 dark:text-red-400" :
+                        "text-slate-300 dark:text-slate-600"
+                      }`}>
+                        {formatCurrency(incomeTotal)}
+                      </th>
+                    );
+                  })()}
                 </tr>
               </tfoot>
             </table>
           </div>
         ) : (
-          <div className="chart-wrapper">
+          <div className="h-72">
             <ChartComponent {...chartProps} />
           </div>
         )}
-      </section>
+      </div>
 
-      <section className="analytics-grid">
-        <article className="card analytics-card">
-          <h3>Top Categories</h3>
-          <ul className="category-list">
+      {/* Bottom grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Categories card */}
+        <div className={cardCls + " p-6"}>
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Top Categories</h3>
+          <ul className="space-y-3">
             {topExpenseCategories.map((item) => (
-              <li key={item.category}>
-                <span className="category-name">{item.category}</span>
-                <span className="category-amount">
-                  {formatCurrency(item.expenses)}
-                </span>
+              <li key={item.category} className="flex items-center justify-between">
+                <span className="text-sm text-slate-600 dark:text-slate-300">{item.category}</span>
+                <span className="text-sm font-medium text-slate-900 dark:text-white">{formatCurrency(item.expenses)}</span>
               </li>
             ))}
             {topExpenseCategories.length === 0 && (
-              <li className="empty-item">No categories to display.</li>
+              <li className="text-sm text-slate-400 dark:text-slate-500">No categories to display.</li>
             )}
           </ul>
-        </article>
+        </div>
 
-        <article className="card analytics-card">
-          <h3>Category Insights</h3>
-          <ul className="insight-list">
-            <li>
-              <span className="insight-label">Highest spending</span>
-              <span className="insight-value">
+        {/* Category Insights card */}
+        <div className={cardCls + " p-6"}>
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Category Insights</h3>
+          <ul className="space-y-3">
+            <li className="flex items-center justify-between">
+              <span className="text-sm text-slate-600 dark:text-slate-300">Highest spending</span>
+              <span className="text-sm font-medium text-slate-900 dark:text-white">
                 {topExpenseCategories.length
                   ? `${topExpenseCategories[0].category} (${formatCurrency(
                       topExpenseCategories[0].expenses
@@ -867,25 +834,25 @@ const Analytics = () => {
                   : "N/A"}
               </span>
             </li>
-            <li>
-              <span className="insight-label">Average expense</span>
-              <span className="insight-value">
+            <li className="flex items-center justify-between">
+              <span className="text-sm text-slate-600 dark:text-slate-300">Average expense</span>
+              <span className="text-sm font-medium text-slate-900 dark:text-white">
                 {filteredExpenses.length
                   ? formatCurrency(totalExpenses / filteredExpenses.length)
                   : formatCurrency(0)}
               </span>
             </li>
-            <li>
-              <span className="insight-label">Expense to income</span>
-              <span className="insight-value">
+            <li className="flex items-center justify-between">
+              <span className="text-sm text-slate-600 dark:text-slate-300">Expense to income</span>
+              <span className="text-sm font-medium text-slate-900 dark:text-white">
                 {totalIncome
                   ? formatPercentage((totalExpenses / totalIncome) * 100)
                   : "N/A"}
               </span>
             </li>
           </ul>
-        </article>
-      </section>
+        </div>
+      </div>
     </section>
   );
 };

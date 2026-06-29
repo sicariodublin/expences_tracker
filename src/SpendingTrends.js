@@ -2,8 +2,11 @@ import "chart.js/auto";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bar, Line } from "react-chartjs-2";
 import apiClient from "./api/apiClient";
-import "./SpendingTrends.css";
 import { formatCurrency, formatPercentage } from "./utils/format";
+
+const cardCls = "bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm";
+const inputCls = "rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent";
+const labelCls = "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1";
 
 const MONTH_LABELS = [
   "Jan",
@@ -305,18 +308,18 @@ const SpendingTrends = () => {
   }, [currentYearExpenses, currentYearIncome, totals]);
 
   return (
-    <section className="trends-container">
-      <header className="trends-header">
-        <h2>Spending Trends</h2>
-        <div className="trends-controls">
-          <div className="control-group">
-            <label className="form-label" htmlFor="trends-year">
+    <section className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Spending Trends</h2>
+        <div className="flex flex-wrap items-end gap-4">
+          <div>
+            <label className={labelCls} htmlFor="trends-year">
               Year
             </label>
             <input
               id="trends-year"
               type="number"
-              className="form-input"
+              className={inputCls + " w-28"}
               value={selectedYear}
               onChange={(event) =>
                 setSelectedYear(Number(event.target.value) || selectedYear)
@@ -325,13 +328,13 @@ const SpendingTrends = () => {
               max={today.getFullYear()}
             />
           </div>
-          <div className="control-group">
-            <label className="form-label" htmlFor="trends-chart">
+          <div>
+            <label className={labelCls} htmlFor="trends-chart">
               Chart
             </label>
             <select
               id="trends-chart"
-              className="form-input"
+              className={inputCls + " w-28"}
               value={chartType}
               onChange={(event) => setChartType(event.target.value)}
             >
@@ -340,34 +343,49 @@ const SpendingTrends = () => {
             </select>
           </div>
         </div>
-      </header>
+      </div>
 
-      <section className="trends-summary">
-        <article className="summary-card">
-          <span className="summary-label">Current year expenses</span>
-          <span className="summary-value">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className={cardCls + " p-5"}>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">
+            Current year expenses
+          </p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-white">
             {formatCurrency(totals.currentExpenses)}
-          </span>
-        </article>
-        <article className="summary-card">
-          <span className="summary-label">Current year income</span>
-          <span className="summary-value">
+          </p>
+        </div>
+        <div className={cardCls + " p-5"}>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">
+            Current year income
+          </p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-white">
             {formatCurrency(totals.currentIncome)}
-          </span>
-        </article>
-        <article
-          className={`summary-card ${
-            totals.currentBalance >= 0 ? "positive" : "negative"
-          }`}
+          </p>
+        </div>
+        <div
+          className={
+            cardCls +
+            " p-5 border-l-4 " +
+            (totals.currentBalance >= 0 ? "border-l-green-500" : "border-l-red-500")
+          }
         >
-          <span className="summary-label">Balance</span>
-          <span className="summary-value">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">
+            Balance
+          </p>
+          <p
+            className={
+              "text-2xl font-bold " +
+              (totals.currentBalance >= 0
+                ? "text-green-600 dark:text-green-400"
+                : "text-red-500 dark:text-red-400")
+            }
+          >
             {formatCurrency(totals.currentBalance)}
-          </span>
-        </article>
-      </section>
+          </p>
+        </div>
+      </div>
 
-      <section className="card trends-chart">
+      <div className={cardCls + " p-6"}>
         {loading ? (
           <div className="animate-pulse flex flex-col gap-3 min-h-[300px] justify-center px-4">
             <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/3" />
@@ -379,73 +397,81 @@ const SpendingTrends = () => {
             </div>
           </div>
         ) : (
-          <div className="chart-wrapper">
+          <div className="h-72">
             <ChartComponent data={chartData} options={chartOptions} />
           </div>
         )}
-      </section>
+      </div>
 
-      <section className="trends-grid">
-        <article className="card growth-card">
-          <h3>Year-over-year growth</h3>
-          <div className="growth-metrics">
-            <div className="growth-item">
-              <span className="growth-label">Expenses</span>
-              <span
-                className={`growth-value ${
-                  totals.expenseGrowth >= 0 ? "negative" : "positive"
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className={cardCls + " p-6"}>
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">
+            Year-over-year growth
+          </h3>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Expenses</p>
+              <p
+                className={`text-lg font-bold ${
+                  totals.expenseGrowth >= 0 ? "text-red-500" : "text-green-500"
                 }`}
               >
                 {formatPercentage(totals.expenseGrowth, 1)}
-              </span>
-              <p className="growth-detail">
+              </p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                 {formatCurrency(totals.currentExpenses)} vs{" "}
                 {formatCurrency(totals.previousExpenses)}
               </p>
             </div>
-            <div className="growth-item">
-              <span className="growth-label">Income</span>
-              <span
-                className={`growth-value ${
-                  totals.incomeGrowth >= 0 ? "positive" : "negative"
+            <div className="text-center">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Income</p>
+              <p
+                className={`text-lg font-bold ${
+                  totals.incomeGrowth >= 0 ? "text-green-500" : "text-red-500"
                 }`}
               >
                 {formatPercentage(totals.incomeGrowth, 1)}
-              </span>
-              <p className="growth-detail">
+              </p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                 {formatCurrency(totals.currentIncome)} vs{" "}
                 {formatCurrency(totals.previousIncome)}
               </p>
             </div>
-            <div className="growth-item">
-              <span className="growth-label">Balance</span>
-              <span
-                className={`growth-value ${
-                  totals.balanceGrowth >= 0 ? "positive" : "negative"
+            <div className="text-center">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Balance</p>
+              <p
+                className={`text-lg font-bold ${
+                  totals.balanceGrowth >= 0 ? "text-green-500" : "text-red-500"
                 }`}
               >
                 {formatPercentage(totals.balanceGrowth, 1)}
-              </span>
-              <p className="growth-detail">
+              </p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                 {formatCurrency(totals.currentBalance)} vs{" "}
                 {formatCurrency(totals.previousBalance)}
               </p>
             </div>
           </div>
-        </article>
+        </div>
 
-        <article className="card insight-card">
-          <h3>Highlights</h3>
-          <ul className="insight-list">
+        <div className={cardCls + " p-6"}>
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">
+            Highlights
+          </h3>
+          <ul className="space-y-3">
             {insights.map((insight) => (
-              <li key={insight.label}>
-                <span className="insight-label">{insight.label}</span>
-                <span className="insight-value">{insight.value}</span>
+              <li key={insight.label} className="flex items-center justify-between">
+                <span className="text-sm text-slate-500 dark:text-slate-400">
+                  {insight.label}
+                </span>
+                <span className="text-sm font-medium text-slate-900 dark:text-white">
+                  {insight.value}
+                </span>
               </li>
             ))}
           </ul>
-        </article>
-      </section>
+        </div>
+      </div>
     </section>
   );
 };
