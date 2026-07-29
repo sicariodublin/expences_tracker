@@ -334,9 +334,9 @@ export default function Layout() {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <h2 className="text-base font-semibold text-slate-900 dark:text-white">
+          <h1 className="text-base font-semibold text-slate-900 dark:text-white">
             {currentPage?.label ?? "Expense Tracker"}
-          </h2>
+          </h1>
         </header>
 
         {/* Email verification banner */}
