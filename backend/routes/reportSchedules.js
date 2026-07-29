@@ -72,6 +72,11 @@ router.post("/:id/send-now", authMiddleware, async (req, res) => {
   try {
     const scheduleId = Number(req.params.id);
     if (!Number.isFinite(scheduleId)) return res.status(400).json({ error: "Invalid schedule id" });
+    const [[schedule]] = await query(
+      "SELECT id FROM report_schedules WHERE id = ? AND user_id = ?",
+      [scheduleId, req.userId]
+    );
+    if (!schedule) return res.status(404).json({ error: "Report schedule not found" });
     await sendScheduledReport(scheduleId);
     res.json({ message: "Report sent" });
   } catch (err) {

@@ -30,7 +30,7 @@ const sendScheduledReport = async (scheduleId) => {
       ? dayjs().subtract(1, "week").endOf("week")
       : dayjs().subtract(1, "month").endOf("month");
 
-    const reportData = await fetchReportData(rangeStart, rangeEnd);
+    const reportData = await fetchReportData(rangeStart, rangeEnd, schedule.user_id);
     const opts = {
       includeBudget: schedule.include_budget_overview,
       includeTrends: schedule.include_trends,

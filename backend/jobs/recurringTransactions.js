@@ -40,8 +40,8 @@ const processRecurringTransactions = async () => {
     for (const tx of transactions) {
       const table = tx.type === "expense" ? "expenses" : "credits";
       await query(
-        `INSERT INTO ${table} (name, amount, date, category) VALUES (?, ?, ?, ?)`,
-        [tx.name, tx.amount, today.format("YYYY-MM-DD"), tx.category]
+        `INSERT INTO ${table} (name, amount, date, category, user_id) VALUES (?, ?, ?, ?, ?)`,
+        [tx.name, tx.amount, today.format("YYYY-MM-DD"), tx.category, tx.user_id]
       );
       const nextRun = calculateNextRunDate(tx, today);
       await query(

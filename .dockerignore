@@ -5,3 +5,5 @@ frontend
 *.md
 *.bat
 expence-tracker.sql
+backend/.env
+.env

@@ -8,7 +8,7 @@ router.post("/export", authMiddleware, validate(schemas.reportExport), async (re
   try {
     const { format = "pdf", startDate, endDate } = req.body;
     const { start, end } = resolveRange(startDate, endDate);
-    const reportData = await fetchReportData(start, end);
+    const reportData = await fetchReportData(start, end, req.userId);
 
     if (format === "excel") {
       const buffer = await generateExcelReport(reportData);

@@ -14,22 +14,24 @@ const resolveRange = (startDate, endDate) => {
   return { start: start.startOf("day"), end: end.endOf("day") };
 };
 
-const fetchReportData = async (start, end) => {
+const fetchReportData = async (start, end, userId) => {
   const startStr = start.format("YYYY-MM-DD");
   const endStr = end.format("YYYY-MM-DD");
   const [expenses] = await query(
-    "SELECT id, name, amount, date, category FROM expenses WHERE date BETWEEN ? AND ? ORDER BY date ASC",
-    [startStr, endStr]
+    "SELECT id, name, amount, date, category FROM expenses WHERE user_id = ? AND date BETWEEN ? AND ? ORDER BY date ASC",
+    [userId, startStr, endStr]
   );
   const [credits] = await query(
-    "SELECT id, name, amount, date, category FROM credits WHERE date BETWEEN ? AND ? ORDER BY date ASC",
-    [startStr, endStr]
+    "SELECT id, name, amount, date, category FROM credits WHERE user_id = ? AND date BETWEEN ? AND ? ORDER BY date ASC",
+    [userId, startStr, endStr]
   );
   const [budgetGoals] = await query(
-    "SELECT category, monthly_limit FROM budget_goals WHERE is_active = TRUE"
+    "SELECT category, monthly_limit FROM budget_goals WHERE user_id = ? AND is_active = TRUE",
+    [userId]
   );
   const [recurring] = await query(
-    "SELECT * FROM recurring_transactions WHERE is_active = TRUE ORDER BY next_run_date ASC"
+    "SELECT * FROM recurring_transactions WHERE user_id = ? AND is_active = TRUE ORDER BY next_run_date ASC",
+    [userId]
   );
   const totalExpenses = expenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
   const totalCredits = credits.reduce((s, c) => s + parseFloat(c.amount || 0), 0);
