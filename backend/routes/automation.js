@@ -37,9 +37,18 @@ router.post("/expected-incomes", authMiddleware, validate(schemas.expectedIncome
 router.put("/expected-incomes/:id", authMiddleware, validate(schemas.expectedIncomePatch), async (req, res) => {
   try {
     const { name, category, expected_amount, frequency, due_day, notes, last_received_date } = req.body;
+    const fields = [], params = [];
+    if (name !== undefined)               { fields.push("name = ?");               params.push(name); }
+    if (category !== undefined)           { fields.push("category = ?");           params.push(category); }
+    if (expected_amount !== undefined)    { fields.push("expected_amount = ?");    params.push(expected_amount); }
+    if (frequency !== undefined)          { fields.push("frequency = ?");          params.push(frequency); }
+    if (due_day !== undefined)            { fields.push("due_day = ?");            params.push(due_day); }
+    if (notes !== undefined)              { fields.push("notes = ?");              params.push(notes); }
+    if (last_received_date !== undefined) { fields.push("last_received_date = ?"); params.push(last_received_date); }
+    fields.push("updated_at = CURRENT_TIMESTAMP");
+    params.push(req.params.id, req.userId);
     await query(
-      "UPDATE expected_incomes SET name=?, category=?, expected_amount=?, frequency=?, due_day=?, notes=?, last_received_date=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=?",
-      [name, category, expected_amount, frequency, due_day, notes, last_received_date, req.params.id, req.userId]
+      `UPDATE expected_incomes SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`, params
     );
     res.json({ message: "Expected income updated" });
   } catch (err) {
@@ -133,9 +142,19 @@ router.post("/recurring-transactions", authMiddleware, validate(schemas.recurrin
 router.put("/recurring-transactions/:id", authMiddleware, validate(schemas.recurringTransactionPatch), async (req, res) => {
   try {
     const { name, category, amount, frequency, day_of_month, weekday, next_run_date, is_active } = req.body;
+    const fields = [], params = [];
+    if (name !== undefined)          { fields.push("name = ?");          params.push(name); }
+    if (category !== undefined)      { fields.push("category = ?");      params.push(category); }
+    if (amount !== undefined)        { fields.push("amount = ?");        params.push(amount); }
+    if (frequency !== undefined)     { fields.push("frequency = ?");     params.push(frequency); }
+    if (day_of_month !== undefined)  { fields.push("day_of_month = ?");  params.push(day_of_month); }
+    if (weekday !== undefined)       { fields.push("weekday = ?");       params.push(weekday); }
+    if (next_run_date !== undefined) { fields.push("next_run_date = ?"); params.push(next_run_date); }
+    if (is_active !== undefined)     { fields.push("is_active = ?");     params.push(is_active); }
+    fields.push("updated_at = CURRENT_TIMESTAMP");
+    params.push(req.params.id, req.userId);
     await query(
-      "UPDATE recurring_transactions SET name=?, category=?, amount=?, frequency=?, day_of_month=?, weekday=?, next_run_date=?, is_active=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=?",
-      [name, category, amount, frequency, day_of_month, weekday, next_run_date, is_active, req.params.id, req.userId]
+      `UPDATE recurring_transactions SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`, params
     );
     res.json({ message: "Recurring transaction updated" });
   } catch (err) {

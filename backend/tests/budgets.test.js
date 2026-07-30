@@ -80,6 +80,20 @@ describe("DELETE /api/budget-goals/:id (soft delete)", () => {
     const list = await auth("get", "/api/budget-goals");
     expect(list.body.find((g) => g.id === id)).toBeUndefined();
   });
+
+  it("returns 404 for a nonexistent budget goal id", async () => {
+    const res = await auth("delete", "/api/budget-goals/999999");
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("PUT /api/budget-goals/:id", () => {
+  it("returns 404 for a nonexistent budget goal id", async () => {
+    const res = await auth("put", "/api/budget-goals/999999").send({
+      category: "Transport", monthly_limit: 200,
+    });
+    expect(res.status).toBe(404);
+  });
 });
 
 describe("GET /api/budget-progress", () => {

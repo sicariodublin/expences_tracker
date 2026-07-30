@@ -43,8 +43,9 @@ router.put("/:id", authMiddleware, validate(schemas.transactionPatch), (req, res
   if (date !== undefined)     { fields.push("date = ?");     params.push(date); }
   if (category !== undefined) { fields.push("category = ?"); params.push(category); }
   params.push(req.params.id, req.userId);
-  db.query(`UPDATE expenses SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`, params, (err) => {
+  db.query(`UPDATE expenses SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`, params, (err, result) => {
     if (err) return res.status(500).json({ error: "Database error" });
+    if (result.affectedRows === 0) return res.status(404).json({ error: "Expense not found" });
     res.json({ message: "Expense updated" });
   });
 });
@@ -53,8 +54,9 @@ router.delete("/:id", authMiddleware, (req, res) => {
   db.query(
     "DELETE FROM expenses WHERE id = ? AND user_id = ?",
     [req.params.id, req.userId],
-    (err) => {
+    (err, result) => {
       if (err) return res.status(500).json({ error: "Database error" });
+      if (result.affectedRows === 0) return res.status(404).json({ error: "Expense not found" });
       res.json({ message: "Expense deleted" });
     }
   );

@@ -7,9 +7,31 @@ const { db } = require("../db");
 const { authMiddleware } = require("../middleware/auth");
 const { normalizeBankRows } = require("../utils/csvNormalizer");
 
-const upload = multer({ dest: "uploads/" });
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
-router.post("/", authMiddleware, upload.single("file"), (req, res, next) => {
+const upload = multer({
+  dest: "uploads/",
+  limits: { fileSize: MAX_FILE_SIZE_BYTES },
+  fileFilter: (req, file, cb) => {
+    const isCsv =
+      file.mimetype === "text/csv" ||
+      file.mimetype === "application/vnd.ms-excel" ||
+      file.originalname.toLowerCase().endsWith(".csv");
+    if (!isCsv) return cb(new Error("Only CSV files are allowed"));
+    cb(null, true);
+  },
+});
+
+router.post("/", authMiddleware, (req, res, next) => {
+  upload.single("file")(req, res, (err) => {
+    if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({ error: `File too large. Max size is ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB.` });
+    }
+    if (err) return res.status(400).json({ error: err.message });
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    next();
+  });
+}, (req, res, next) => {
   const filePath = req.file.path;
   const rows = [];
 

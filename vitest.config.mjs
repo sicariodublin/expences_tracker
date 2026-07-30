@@ -28,6 +28,17 @@ export default defineConfig({
       DB_NAME: "expense_tracker_test",
       JWT_SECRET: process.env.JWT_SECRET || "test-jwt-secret-at-least-32-chars-long",
       EMAIL_SECRET_KEY: process.env.EMAIL_SECRET_KEY || "test-email-secret-key-32-chars-aa",
+      // Force-blanked (not a `||` fallback): backend/.env carries real SMTP
+      // credentials, and utils/email.js creates a live transporter at import
+      // time whenever these are set — tests must never be able to send real
+      // email through the developer's actual mail account.
+      SMTP_HOST: "",
+      SMTP_PORT: "",
+      SMTP_USER: "",
+      SMTP_PASS: "",
+      SMTP_VERIFY: "",
+      REPORT_FROM_EMAIL: "",
+      EMAIL_DEV_MODE: "",
     },
   },
 });

@@ -54,6 +54,8 @@ const USER_SCOPED_TABLES = [
   "expected_incomes", "recurring_transactions", "report_schedules",
 ];
 
+const SINGLE_USER_REASSIGN_FLAG = "single_user_reassign_done";
+
 const claimOrphanedData = async (userId) => {
   for (const table of USER_SCOPED_TABLES) {
     await query(`UPDATE ${table} SET user_id = ? WHERE user_id IS NULL`, [userId]);
@@ -135,16 +137,34 @@ const initAuthTables = async () => {
         if (e.code !== "ER_DUP_FIELDNAME" && e.code !== "ER_NO_SUCH_TABLE") throw e;
       }
     }
-    const [[{ cnt }]] = await query("SELECT COUNT(*) as cnt FROM users");
-    if (cnt === 1) {
-      const [[{ id }]] = await query("SELECT id FROM users LIMIT 1");
-      for (const table of USER_SCOPED_TABLES) {
-        await query(`UPDATE ${table} SET user_id = ? WHERE user_id IS NULL OR user_id != ?`, [id, id]);
-      }
-    }
+    await runSingleUserReassignOnce();
   } catch (err) {
     console.error("Failed to init auth tables:", err);
   }
+};
+
+// One-time migration: if the DB was ever down to a single user, adopt any
+// orphaned/mis-owned rows into that user. Gated by a persisted flag so it
+// runs at most once ever, instead of re-running (and potentially
+// reassigning rows that already belong to someone) on every server boot.
+const runSingleUserReassignOnce = async () => {
+  await query(`CREATE TABLE IF NOT EXISTS system_flags (
+    flag_name VARCHAR(100) PRIMARY KEY,
+    set_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+  const [[flag]] = await query(
+    "SELECT flag_name FROM system_flags WHERE flag_name = ?", [SINGLE_USER_REASSIGN_FLAG]
+  );
+  if (flag) return;
+
+  const [[{ cnt }]] = await query("SELECT COUNT(*) as cnt FROM users");
+  if (cnt === 1) {
+    const [[{ id }]] = await query("SELECT id FROM users LIMIT 1");
+    for (const table of USER_SCOPED_TABLES) {
+      await query(`UPDATE ${table} SET user_id = ? WHERE user_id IS NULL OR user_id != ?`, [id, id]);
+    }
+  }
+  await query("INSERT IGNORE INTO system_flags (flag_name) VALUES (?)", [SINGLE_USER_REASSIGN_FLAG]);
 };
 
 const waitForDbReady = async (timeoutMs = 8000) => {
@@ -159,4 +179,7 @@ const waitForDbReady = async (timeoutMs = 8000) => {
   }
 };
 
-module.exports = { db, query, dbReady, waitForDbReady, claimOrphanedData, maybeClaimOrphanedData, USER_SCOPED_TABLES };
+module.exports = {
+  db, query, dbReady, waitForDbReady, claimOrphanedData, maybeClaimOrphanedData,
+  runSingleUserReassignOnce, USER_SCOPED_TABLES, SINGLE_USER_REASSIGN_FLAG,
+};

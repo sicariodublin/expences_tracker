@@ -29,8 +29,17 @@ beforeAll(async () => {
     user_id INT NULL
   )`);
   await query(`CREATE TABLE IF NOT EXISTS expected_incomes (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NULL
+    id                  INT AUTO_INCREMENT PRIMARY KEY,
+    name                VARCHAR(120) NOT NULL,
+    category            VARCHAR(100) NOT NULL,
+    expected_amount     DECIMAL(10,2) NOT NULL,
+    frequency           ENUM('monthly','quarterly','yearly','one-time') DEFAULT 'monthly',
+    due_day             TINYINT NULL,
+    notes               VARCHAR(255) NULL,
+    last_received_date  DATE NULL,
+    created_at          TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    user_id             INT NULL
   )`);
   await query(`CREATE TABLE IF NOT EXISTS recurring_transactions (
     id            INT AUTO_INCREMENT PRIMARY KEY,

@@ -85,6 +85,11 @@ describe("PUT /api/expenses/:id", () => {
     const res = await request(app).put("/api/expenses/1").send({ amount: 5 });
     expect(res.status).toBe(401);
   });
+
+  it("returns 404 for a nonexistent expense id", async () => {
+    const res = await auth("put", "/api/expenses/999999").send({ amount: 5 });
+    expect(res.status).toBe(404);
+  });
 });
 
 describe("DELETE /api/expenses/:id", () => {
@@ -107,5 +112,10 @@ describe("DELETE /api/expenses/:id", () => {
   it("returns 401 without auth", async () => {
     const res = await request(app).delete("/api/expenses/1");
     expect(res.status).toBe(401);
+  });
+
+  it("returns 404 for a nonexistent expense id", async () => {
+    const res = await auth("delete", "/api/expenses/999999");
+    expect(res.status).toBe(404);
   });
 });

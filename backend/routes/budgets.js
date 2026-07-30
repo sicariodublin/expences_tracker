@@ -32,8 +32,9 @@ router.put("/:id", authMiddleware, validate(schemas.budgetGoalPatch), (req, res)
   db.query(
     "UPDATE budget_goals SET category = ?, monthly_limit = ? WHERE id = ? AND user_id = ?",
     [category, monthly_limit, req.params.id, req.userId],
-    (err) => {
+    (err, result) => {
       if (err) return res.status(500).json({ error: "Database error" });
+      if (result.affectedRows === 0) return res.status(404).json({ error: "Budget goal not found" });
       res.json({ message: "Budget goal updated" });
     }
   );
@@ -43,8 +44,9 @@ router.delete("/:id", authMiddleware, (req, res) => {
   db.query(
     "UPDATE budget_goals SET is_active = FALSE WHERE id = ? AND user_id = ?",
     [req.params.id, req.userId],
-    (err) => {
+    (err, result) => {
       if (err) return res.status(500).json({ error: "Database error" });
+      if (result.affectedRows === 0) return res.status(404).json({ error: "Budget goal not found" });
       res.json({ message: "Budget goal deleted" });
     }
   );
