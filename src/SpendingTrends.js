@@ -2,11 +2,8 @@ import "chart.js/auto";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bar, Line } from "react-chartjs-2";
 import apiClient from "./api/apiClient";
+import { cardCls, inputClsCompact as inputCls, labelCls } from "./constants/uiClasses";
 import { formatCurrency, formatPercentage } from "./utils/format";
-
-const cardCls = "bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm";
-const inputCls = "rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent";
-const labelCls = "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1";
 
 const MONTH_LABELS = [
   "Jan",

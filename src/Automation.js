@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 import apiClient from "./api/apiClient";
 import { EXPENSE_CATEGORIES } from "./constants/categories";
+import { cardCls, inputCls, labelCls, btnPrimary, btnSecondary, btnGhost, btnDanger } from "./constants/uiClasses";
 import { formatCurrency } from "./utils/format";
 
 const emptyIncome = {
@@ -405,13 +406,6 @@ const Automation = () => {
     );
   }, [reconciliation]);
 
-  const cardCls = "bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm";
-  const inputCls = "w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 dark:placeholder-slate-500";
-  const labelCls = "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1";
-  const btnPrimary = "inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
-  const btnSecondary = "inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium transition-colors";
-  const btnGhost = "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-medium transition-colors";
-  const btnDanger = "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 text-xs font-medium transition-colors";
   const thCls = "px-3 py-2.5 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-700/50";
   const tdCls = "px-3 py-2.5 text-sm text-slate-700 dark:text-slate-300";
 
@@ -440,79 +434,97 @@ const Automation = () => {
         </div>
         <form onSubmit={handleIncomeSubmit}>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-            <input
-              type="text"
-              placeholder="Name"
-              className={inputCls}
-              value={newIncome.name}
-              onChange={(e) =>
-                setNewIncome((prev) => ({ ...prev, name: e.target.value }))
-              }
-              required
-            />
-            <select
-              className={inputCls}
-              value={newIncome.category}
-              onChange={(e) =>
-                setNewIncome((prev) => ({ ...prev, category: e.target.value }))
-              }
-              required
-            >
-              <option value="">Category</option>
-              {EXPENSE_CATEGORIES.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="Expected amount"
-              className={inputCls}
-              value={newIncome.expected_amount}
-              onChange={(e) =>
-                setNewIncome((prev) => ({
-                  ...prev,
-                  expected_amount: e.target.value,
-                }))
-              }
-              required
-            />
-            <select
-              className={inputCls}
-              value={newIncome.frequency}
-              onChange={(e) =>
-                setNewIncome((prev) => ({ ...prev, frequency: e.target.value }))
-              }
-            >
-              {frequencyOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <input
-              type="number"
-              min="1"
-              max="31"
-              placeholder="Due day (optional)"
-              className={inputCls}
-              value={newIncome.due_day}
-              onChange={(e) =>
-                setNewIncome((prev) => ({ ...prev, due_day: e.target.value }))
-              }
-            />
-            <input
-              type="text"
-              placeholder="Notes"
-              className={inputCls}
-              value={newIncome.notes}
-              onChange={(e) =>
-                setNewIncome((prev) => ({ ...prev, notes: e.target.value }))
-              }
-            />
+            <div>
+              <label className={labelCls}>Name</label>
+              <input
+                type="text"
+                placeholder="Name"
+                className={inputCls}
+                value={newIncome.name}
+                onChange={(e) =>
+                  setNewIncome((prev) => ({ ...prev, name: e.target.value }))
+                }
+                required
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Category</label>
+              <select
+                className={inputCls}
+                value={newIncome.category}
+                onChange={(e) =>
+                  setNewIncome((prev) => ({ ...prev, category: e.target.value }))
+                }
+                required
+              >
+                <option value="">Category</option>
+                {EXPENSE_CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Expected amount</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Expected amount"
+                className={inputCls}
+                value={newIncome.expected_amount}
+                onChange={(e) =>
+                  setNewIncome((prev) => ({
+                    ...prev,
+                    expected_amount: e.target.value,
+                  }))
+                }
+                required
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Frequency</label>
+              <select
+                className={inputCls}
+                value={newIncome.frequency}
+                onChange={(e) =>
+                  setNewIncome((prev) => ({ ...prev, frequency: e.target.value }))
+                }
+              >
+                {frequencyOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Due day (optional)</label>
+              <input
+                type="number"
+                min="1"
+                max="31"
+                placeholder="Due day (optional)"
+                className={inputCls}
+                value={newIncome.due_day}
+                onChange={(e) =>
+                  setNewIncome((prev) => ({ ...prev, due_day: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Notes</label>
+              <input
+                type="text"
+                placeholder="Notes"
+                className={inputCls}
+                value={newIncome.notes}
+                onChange={(e) =>
+                  setNewIncome((prev) => ({ ...prev, notes: e.target.value }))
+                }
+              />
+            </div>
           </div>
           <div className="flex gap-2 mt-2">
             <button type="submit" className={btnPrimary}>
@@ -665,111 +677,135 @@ const Automation = () => {
         </div>
         <form onSubmit={handleRecurringSubmit}>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-            <select
-              className={inputCls}
-              value={newRecurring.type}
-              onChange={(e) =>
-                setNewRecurring((prev) => ({ ...prev, type: e.target.value }))
-              }
-            >
-              <option value="expense">Expense</option>
-              <option value="credit">Income</option>
-            </select>
-            <input
-              type="text"
-              placeholder="Name"
-              className={inputCls}
-              value={newRecurring.name}
-              onChange={(e) =>
-                setNewRecurring((prev) => ({ ...prev, name: e.target.value }))
-              }
-              required
-            />
-            <select
-              className={inputCls}
-              value={newRecurring.category}
-              onChange={(e) =>
-                setNewRecurring((prev) => ({ ...prev, category: e.target.value }))
-              }
-              required
-            >
-              <option value="">Category</option>
-              {EXPENSE_CATEGORIES.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="Amount"
-              className={inputCls}
-              value={newRecurring.amount}
-              onChange={(e) =>
-                setNewRecurring((prev) => ({ ...prev, amount: e.target.value }))
-              }
-              required
-            />
-            <select
-              className={inputCls}
-              value={newRecurring.frequency}
-              onChange={(e) =>
-                setNewRecurring((prev) => ({
-                  ...prev,
-                  frequency: e.target.value,
-                }))
-              }
-            >
-              {recurringFrequencyOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <input
-              type="number"
-              min="1"
-              max="31"
-              placeholder="Day of month"
-              className={inputCls}
-              value={newRecurring.dayOfMonth}
-              onChange={(e) =>
-                setNewRecurring((prev) => ({
-                  ...prev,
-                  dayOfMonth: e.target.value,
-                }))
-              }
-            />
-            <select
-              className={inputCls}
-              value={newRecurring.weekday}
-              onChange={(e) =>
-                setNewRecurring((prev) => ({
-                  ...prev,
-                  weekday: e.target.value,
-                }))
-              }
-            >
-              <option value="">Weekday (optional)</option>
-              {weekdayLabels.map((label, index) => (
-                <option key={label} value={index}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <input
-              type="date"
-              className={inputCls}
-              value={newRecurring.startDate}
-              onChange={(e) =>
-                setNewRecurring((prev) => ({
-                  ...prev,
-                  startDate: e.target.value,
-                }))
-              }
-            />
+            <div>
+              <label className={labelCls}>Type</label>
+              <select
+                className={inputCls}
+                value={newRecurring.type}
+                onChange={(e) =>
+                  setNewRecurring((prev) => ({ ...prev, type: e.target.value }))
+                }
+              >
+                <option value="expense">Expense</option>
+                <option value="credit">Income</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Name</label>
+              <input
+                type="text"
+                placeholder="Name"
+                className={inputCls}
+                value={newRecurring.name}
+                onChange={(e) =>
+                  setNewRecurring((prev) => ({ ...prev, name: e.target.value }))
+                }
+                required
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Category</label>
+              <select
+                className={inputCls}
+                value={newRecurring.category}
+                onChange={(e) =>
+                  setNewRecurring((prev) => ({ ...prev, category: e.target.value }))
+                }
+                required
+              >
+                <option value="">Category</option>
+                {EXPENSE_CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Amount</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Amount"
+                className={inputCls}
+                value={newRecurring.amount}
+                onChange={(e) =>
+                  setNewRecurring((prev) => ({ ...prev, amount: e.target.value }))
+                }
+                required
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Frequency</label>
+              <select
+                className={inputCls}
+                value={newRecurring.frequency}
+                onChange={(e) =>
+                  setNewRecurring((prev) => ({
+                    ...prev,
+                    frequency: e.target.value,
+                  }))
+                }
+              >
+                {recurringFrequencyOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Day of month</label>
+              <input
+                type="number"
+                min="1"
+                max="31"
+                placeholder="Day of month"
+                className={inputCls}
+                value={newRecurring.dayOfMonth}
+                onChange={(e) =>
+                  setNewRecurring((prev) => ({
+                    ...prev,
+                    dayOfMonth: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Weekday (optional)</label>
+              <select
+                className={inputCls}
+                value={newRecurring.weekday}
+                onChange={(e) =>
+                  setNewRecurring((prev) => ({
+                    ...prev,
+                    weekday: e.target.value,
+                  }))
+                }
+              >
+                <option value="">Weekday (optional)</option>
+                {weekdayLabels.map((label, index) => (
+                  <option key={label} value={index}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Start date</label>
+              <input
+                type="date"
+                className={inputCls}
+                value={newRecurring.startDate}
+                onChange={(e) =>
+                  setNewRecurring((prev) => ({
+                    ...prev,
+                    startDate: e.target.value,
+                  }))
+                }
+              />
+            </div>
           </div>
           <div className="flex gap-2 mt-2">
             <button type="submit" className={btnPrimary}>

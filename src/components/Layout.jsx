@@ -18,6 +18,7 @@ import BudgetGoals from "../BudgetGoals";
 import SpendingTrends from "../SpendingTrends";
 import Dashboard from "../pages/Dashboard";
 import { useAuth } from "../context/AuthContext";
+import { inputCls, labelCls, btnPrimary } from "../constants/uiClasses";
 
 const NAV_ITEMS = [
   { to: "/",           label: "Dashboard",    Icon: LayoutDashboard, end: true },
@@ -25,13 +26,6 @@ const NAV_ITEMS = [
   { to: "/analytics",  label: "Analytics",    Icon: BarChart3 },
   { to: "/automation", label: "Automation",   Icon: Zap },
 ];
-
-const inputCls =
-  "w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 dark:placeholder-slate-500";
-const labelCls =
-  "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1";
-const btnPrimary =
-  "inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
 
 function AuthModal() {
   const {

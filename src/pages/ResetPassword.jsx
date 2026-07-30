@@ -3,13 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { Toaster, toast } from "react-hot-toast";
 import { Wallet } from "lucide-react";
 import apiClient from "../api/apiClient";
-
-const inputCls =
-  "w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 dark:placeholder-slate-500";
-const labelCls =
-  "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1";
-const btnPrimary =
-  "inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
+import { inputCls, labelCls, btnPrimary } from "../constants/uiClasses";
 
 export default function ResetPassword() {
   const [params] = useSearchParams();

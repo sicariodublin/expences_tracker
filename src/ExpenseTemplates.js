@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { toast } from "react-hot-toast";
 import "./ExpenseTemplates.css";
 import { formatCurrency } from "./utils/format";
 
@@ -38,7 +39,7 @@ const ExpenseTemplates = ({ onAddExpense, categories }) => {
     if (!editingTemplate || !onAddExpense) return;
     const amt = parseFloat(editingAmount);
     if (!Number.isFinite(amt) || amt <= 0) {
-      alert("Please enter a valid amount.");
+      toast.error("Please enter a valid amount.");
       return;
     }
     onAddExpense({
@@ -62,7 +63,7 @@ const ExpenseTemplates = ({ onAddExpense, categories }) => {
       !customTemplate.amount ||
       !customTemplate.category
     ) {
-      alert("Please complete all fields to save the custom expense.");
+      toast.error("Please complete all fields to save the custom expense.");
       return;
     }
 
