@@ -33,7 +33,9 @@ const verifyJwt = (token) => {
     const expected = toB64Url(
       crypto.createHmac("sha256", JWT_SECRET).update(`${h}.${b}`).digest()
     );
-    if (expected !== s) return null;
+    const expectedBuf = Buffer.from(expected);
+    const actualBuf = Buffer.from(String(s || ""));
+    if (expectedBuf.length !== actualBuf.length || !crypto.timingSafeEqual(expectedBuf, actualBuf)) return null;
     const payload = JSON.parse(fromB64Url(b).toString("utf8"));
     if (payload.exp && Math.floor(Date.now() / 1000) > payload.exp) return null;
     return payload;

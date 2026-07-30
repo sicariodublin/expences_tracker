@@ -160,3 +160,28 @@ describe("DELETE /api/auth/account", () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe("Token signature verification", () => {
+  it("rejects a token with a tampered signature (same length)", async () => {
+    const reg = await request(app).post(`${BASE}/register`).send(CREDS);
+    const [h, b, s] = reg.body.token.split(".");
+    const flippedChar = s[0] === "a" ? "b" : "a";
+    const tampered = `${h}.${b}.${flippedChar}${s.slice(1)}`;
+
+    const res = await request(app)
+      .get(`${BASE}/me`)
+      .set("Authorization", `Bearer ${tampered}`);
+    expect(res.status).toBe(401);
+  });
+
+  it("rejects a token with a signature of a different length", async () => {
+    const reg = await request(app).post(`${BASE}/register`).send(CREDS);
+    const [h, b, s] = reg.body.token.split(".");
+    const tampered = `${h}.${b}.${s}extra`;
+
+    const res = await request(app)
+      .get(`${BASE}/me`)
+      .set("Authorization", `Bearer ${tampered}`);
+    expect(res.status).toBe(401);
+  });
+});
