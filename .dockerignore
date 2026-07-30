@@ -7,3 +7,4 @@ frontend
 expence-tracker.sql
 backend/.env
 .env
+backend/uploads
