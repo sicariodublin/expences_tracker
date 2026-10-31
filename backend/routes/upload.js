@@ -57,8 +57,11 @@ router.post("/", authMiddleware, (req, res, next) => {
       }
 
       let expensesCount = 0, incomeCount = 0, duplicates = 0;
+      // Transactions must run on one dedicated connection from the pool.
+      let conn;
       try {
-        await db.promise().beginTransaction();
+        conn = await db.promise().getConnection();
+        await conn.beginTransaction();
         for (const item of normalized) {
           const name = item.name || "Unnamed";
           const amount = item.amount || 0;
@@ -66,24 +69,26 @@ router.post("/", authMiddleware, (req, res, next) => {
           const category = item.category || (item.type === "income" ? "Income" : "Uncategorized");
           const table = item.type === "income" ? "credits" : "expenses";
 
-          const [existing] = await db.promise().query(
+          const [existing] = await conn.query(
             `SELECT id FROM ${table} WHERE user_id = ? AND name = ? AND amount = ? AND date = ? LIMIT 1`,
             [req.userId, name, amount, date]
           );
           if (existing.length) { duplicates++; continue; }
 
-          await db.promise().query(
+          await conn.query(
             `INSERT INTO ${table} (name, amount, date, category, user_id) VALUES (?, ?, ?, ?, ?)`,
             [name, amount, date, category, req.userId]
           );
           item.type === "income" ? incomeCount++ : expensesCount++;
         }
-        await db.promise().commit();
+        await conn.commit();
       } catch (err) {
-        try { await db.promise().rollback(); } catch (_) {}
+        try { if (conn) await conn.rollback(); } catch (_) {}
         console.error("Error importing CSV:", err);
         fs.unlink(filePath, () => {});
         return next(err);
+      } finally {
+        if (conn) conn.release();
       }
 
       fs.unlink(filePath, () => {});

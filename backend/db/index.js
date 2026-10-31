@@ -8,43 +8,31 @@ const dbConfig = {
   database: process.env.DB_NAME,
   connectTimeout: 5000,
   dateStrings: true,
+  waitForConnections: true,
+  connectionLimit: 10,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000,
 };
 
-let dbConnected = false;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const createDbConnection = () => {
-  const conn = mysql.createConnection(dbConfig);
-  conn.on("error", () => { dbConnected = false; });
-  return conn;
-};
-
-let db = createDbConnection();
-
-const connectDbOnce = () =>
-  new Promise((resolve, reject) => {
-    db.connect(async (err) => {
-      if (err) { reject(err); return; }
-      dbConnected = true;
-      console.log("Connected to MySQL");
-      await initAuthTables().catch((e) => console.error("Auth table init error:", e));
-      resolve();
-    });
-  });
+// A pool (instead of one long-lived connection) automatically drops dead
+// connections and opens new ones, so a MySQL restart or idle timeout no longer
+// leaves the app stuck with "connection is in closed state".
+const db = mysql.createPool(dbConfig);
 
 const dbReady = (async () => {
-  while (!dbConnected) {
+  for (;;) {
     try {
-      await connectDbOnce();
+      await db.promise().query("SELECT 1");
+      console.log("Connected to MySQL");
+      await initAuthTables().catch((e) => console.error("Auth table init error:", e));
       return true;
     } catch (err) {
       console.error("Database connection failed:", err.message);
-      try { db.destroy(); } catch (_) {}
-      db = createDbConnection();
       await sleep(1000);
     }
   }
-  return true;
 })();
 
 const query = (sql, params = []) => db.promise().query(sql, params);
