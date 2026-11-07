@@ -10,7 +10,7 @@ COPY . .
 ARG REACT_APP_API_URL=/api
 ENV REACT_APP_API_URL=$REACT_APP_API_URL
 
-# Override the homepage field (set for GitHub Pages) so assets resolve from /
+# Build for the site root instead of the GitHub Pages sub-path (see vite.config.mjs)
 ENV PUBLIC_URL=/
 
 RUN npm run build

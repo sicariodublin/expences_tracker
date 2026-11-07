@@ -1,5 +1,5 @@
-const defaultCurrency = process.env.REACT_APP_CURRENCY || "EUR";
-const defaultLocale = process.env.REACT_APP_LOCALE || "en-GB";
+const defaultCurrency = import.meta.env.REACT_APP_CURRENCY || "EUR";
+const defaultLocale = import.meta.env.REACT_APP_LOCALE || "en-GB";
 
 const currencyFormatter = new Intl.NumberFormat(defaultLocale, {
   style: "currency",
