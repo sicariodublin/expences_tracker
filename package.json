@@ -6,7 +6,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:frontend": "npm test --prefix frontend -- --watchAll=false",
+    "test:frontend": "npm test --prefix frontend",
     "test:all": "npm run test && npm run test:frontend",
     "build:frontend": "npm run build --prefix frontend",
     "migrate": "node backend/db/migrate.js",
